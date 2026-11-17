@@ -329,6 +329,9 @@ void QmixProcessor::runBands (float* L, float* R, int n, bool dynamicOnly, int m
     const double atk  = 1.0 - std::exp (-1.0 / (0.004 * sr));             // détecteur : 4 ms
     const double rel  = 1.0 - std::exp (-1.0 / (0.120 * sr));             //             120 ms
     const int designMode = mode == qmix::zeroLatency ? qmix::zeroLatency : qmix::analog;
+    // en phase linéaire, les bandes dynamiques restent en Analog « Clean »
+    const int flavour = (designMode == qmix::analog && ! dynamicOnly) ? analogFlavour.load() : (int) qmix::flavourClean;
+    const int modeKey = designMode * 10 + flavour;        // un changement de caractère = fondu court, comme un changement de forme
 
     for (int b = 0; b < qmix::kNumBands; ++b)
     {
@@ -348,9 +351,9 @@ void QmixProcessor::runBands (float* L, float* R, int n, bool dynamicOnly, int m
             d.amt = 0.0; d.lastType = -1; d.env = 0.0; d.dynGain = 0.0; dynDb[b] = 0.0f;
             continue;
         }
-        if (! d.primed) { d.sFreq = tf; d.sGain = tg; d.sQ = tq; d.primed = true; d.reset(); d.lastType = type; d.lastSlope = slope; d.lastMode = designMode; d.dFreq = -1; d.kFreq = -1; }
+        if (! d.primed) { d.sFreq = tf; d.sGain = tg; d.sQ = tq; d.primed = true; d.reset(); d.lastType = type; d.lastSlope = slope; d.lastMode = modeKey; d.dFreq = -1; d.kFreq = -1; }
 
-        const bool shapeChange = type != d.lastType || slope != d.lastSlope || designMode != d.lastMode;
+        const bool shapeChange = type != d.lastType || slope != d.lastSlope || modeKey != d.lastMode;
         const double targetAmt = (active && ! shapeChange) ? 1.0 : 0.0;
 
         // détecteur : passe-bande à la fréquence de la bande (plateaux : Q large)
@@ -365,7 +368,7 @@ void QmixProcessor::runBands (float* L, float* R, int n, bool dynamicOnly, int m
         {
             const int len = jmin (kSub, n - start);
             d.amt   += (targetAmt - d.amt) * aAmt;
-            if (shapeChange && d.amt < 1.0e-3) { d.lastType = type; d.lastSlope = slope; d.lastMode = designMode; d.reset(); d.amt = 0.0; d.dFreq = -1; d.kFreq = -1; }
+            if (shapeChange && d.amt < 1.0e-3) { d.lastType = type; d.lastSlope = slope; d.lastMode = modeKey; d.reset(); d.amt = 0.0; d.dFreq = -1; d.kFreq = -1; }
             d.sFreq *= std::pow (tf / d.sFreq, aSm);
             d.sQ    *= std::pow (tq / d.sQ, aSm);
             d.sGain += (tg - d.sGain) * aSm;
@@ -408,7 +411,7 @@ void QmixProcessor::runBands (float* L, float* R, int n, bool dynamicOnly, int m
                 const bool reselect = d.kFreq < 0 || std::abs (std::log (d.sFreq / d.kFreq)) > 0.03 || std::abs (gNow - d.kGain) > 0.75
                                    || std::abs (std::log (d.sQ / d.kQ)) > 0.05;
                 if (reselect) { d.kFreq = d.sFreq; d.kGain = gNow; d.kQ = d.sQ; }
-                const auto des = qmix::design (d.lastType, d.sFreq, gNow, d.sQ, d.lastSlope, sr, designMode, d.kinds, ! reselect);
+                const auto des = qmix::design (d.lastType, d.sFreq, gNow, d.sQ, d.lastSlope, sr, designMode, d.kinds, ! reselect, flavour);
                 d.n = des.n;
                 for (int s = 0; s < des.n; ++s) d.c[s].from (des.s[s]);
                 d.dFreq = d.sFreq; d.dGain = gNow; d.dQ = d.sQ; d.dAmt = d.amt;
@@ -673,6 +676,7 @@ ValueTree QmixProcessor::savePresetTree() const
             if (wp->paramID != "power")
                 t.setProperty (wp->paramID, p->getValue(), nullptr);
     t.setProperty ("mode", phaseMode.load(), nullptr);
+    t.setProperty ("flavour", analogFlavour.load(), nullptr);
     return t;
 }
 
@@ -683,6 +687,7 @@ void QmixProcessor::loadPresetTree (const ValueTree& t, const String& name)
             if (t.hasProperty (wp->paramID))
                 p->setValueNotifyingHost ((float) t[wp->paramID]);
     if (t.hasProperty ("mode")) phaseMode = jlimit (0, qmix::numModes - 1, (int) t["mode"]);
+    if (t.hasProperty ("flavour")) analogFlavour = jlimit (0, qmix::numFlavours - 1, (int) t["flavour"]);
     presetName = name;
     currentPreset = -1;
     presetDirty = false;
@@ -698,6 +703,7 @@ void QmixProcessor::getStateInformation (MemoryBlock& dest)
     state.setProperty ("glow", glowIdx.load(), nullptr);
     state.setProperty ("mode", phaseMode.load(), nullptr);
     state.setProperty ("lpQuality", lpQuality.load(), nullptr);
+    state.setProperty ("flavour", analogFlavour.load(), nullptr);
     state.setProperty ("preset", currentPreset.load(), nullptr);
     state.setProperty ("presetName", presetName, nullptr);
     state.setProperty ("presetDirty", presetDirty.load(), nullptr);
@@ -723,6 +729,7 @@ void QmixProcessor::setStateInformation (const void* data, int size)
         glowIdx      = (int) t.getProperty ("glow", 2);
         phaseMode    = jlimit (0, qmix::numModes - 1, (int) t.getProperty ("mode", (int) qmix::analog));
         lpQuality    = jlimit (0, 2, (int) t.getProperty ("lpQuality", 1));
+        analogFlavour = jlimit (0, qmix::numFlavours - 1, (int) t.getProperty ("flavour", 0));
         currentPreset = (int) t.getProperty ("preset", 0);
         presetName   = t.getProperty ("presetName", "Flat").toString();
         presetDirty  = (bool) t.getProperty ("presetDirty", false);

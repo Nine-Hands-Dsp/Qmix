@@ -164,6 +164,40 @@ int main()
         }
     }
 
+    // 4 bis. caractère du mode Analog : largeur des cloches selon le gain, plateaux, et mesure = courbe
+    for (int fl = 0; fl < qmix::numFlavours; ++fl)
+    {
+        std::cout << "Analog " << qmix::flavourName (fl) << " :";
+        for (double g : { 3.0, 9.0, 18.0 })
+        {
+            const auto d = qmix::design (qmix::bell, 1000, g, 1.0, 3, 48000.0, qmix::analog, nullptr, false, fl);
+            double lo = 0, hi = 0;
+            for (double f = 30; f < 20000; f *= 1.002) { const double v = qmix::responseDb (d, f, 48000.0); if (v > g * 0.5) { if (lo == 0) lo = f; hi = f; } }
+            std::cout << "  cloche Q1 " << g << " dB -> " << std::log2 (hi / lo) << " oct";
+        }
+        const auto sh = qmix::design (qmix::lowShelf, 100, 12, 0.7071, 3, 48000.0, qmix::analog, nullptr, false, fl);
+        double mn = 0; for (double f = 100; f < 3000; f *= 1.01) mn = jmin (mn, qmix::responseDb (sh, f, 48000.0));
+        std::cout << "  | plateau bas +12 dB : creux " << mn << " dB\n";
+    }
+    {
+        p.phaseMode = qmix::analog; p.prepareToPlay (48000.0, 512);
+        for (int fl : { 1, 2 })
+        {
+            p.analogFlavour = fl;
+            p.loadFactoryPreset (1);
+            auto y = impulseThrough (p, 1 << 15);
+            double worst = 0;
+            for (double f : { 60.0, 250.0, 1000.0, 3200.0, 11000.0, 16000.0 })
+            {
+                double expect = 0;
+                for (int bb = 0; bb < qmix::kNumBands; ++bb) { auto v = p.bandValues (bb); if (v.used) expect += qmix::responseDb (qmix::design (v.type, v.freq, v.gain, v.q, v.slope, 48000.0, qmix::analog, nullptr, false, fl), f, 48000.0); }
+                worst = jmax (worst, std::abs (measureDb (y, 0, f, 48000.0) - expect));
+            }
+            std::cout << "Analog " << qmix::flavourName (fl) << " : ecart mesure / courbe " << worst << " dB\n";
+        }
+        p.analogFlavour = 0;
+    }
+
     // 5. captures (notice, README de contrôle)
     p.phaseMode = qmix::analog; p.prepareToPlay (48000.0, 512);
     p.loadFactoryPreset (1);
@@ -180,6 +214,15 @@ int main()
         ed->showStatus (ed->bandSummary (2)); ed->statusAlpha = 1.0f; snap (*ed, "qmix_status.png", 2.0f);
         ed->selectBand (4); runAudio (p, ed.get(), 30); quiet(); ed->display.hover = 4; snap (*ed, "qmix_dyn.png", 2.0f);
         p.phaseMode = qmix::linearPhase; ed->selectBand (-1); runAudio (p, ed.get(), 30); quiet(); snap (*ed, "qmix_linear.png", 2.0f);
+        // même réglage, trois caractères (cloches à +4 / −4 dB et plateau bas +8 dB)
+        p.phaseMode = qmix::analog; p.loadFactoryPreset (0); ed->selectBand (-1);
+        p.createBand (90.0f, 8.0f, qmix::lowShelf); p.createBand (400.0f, -4.0f, qmix::bell); p.createBand (3000.0f, 4.0f, qmix::bell);
+        for (int fl = 0; fl < qmix::numFlavours; ++fl)
+        {
+            p.analogFlavour = fl; runAudio (p, ed.get(), 12); quiet();
+            snap (*ed, "qmix_flavour" + String (fl) + ".png", 2.0f);
+        }
+        p.analogFlavour = 0;
         p.phaseMode = qmix::zeroLatency; p.loadFactoryPreset (0); runAudio (p, ed.get(), 10); quiet(); snap (*ed, "qmix_empty.png", 2.0f);
     }
     return 0;

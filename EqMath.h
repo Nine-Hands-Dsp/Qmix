@@ -52,6 +52,34 @@ namespace qmix
     enum PhaseMode { zeroLatency = 0, analog, linearPhase, numModes };
     inline const char* modeName (int m) { static const char* n[numModes] = { "Zero Latency", "Analog", "Linear Phase" }; return n[std::clamp (m, 0, numModes - 1)]; }
 
+    //------------------------------------------------------------------ caractère du mode Analog (comportement de console)
+    //  Clean      : les réglages tels quels (Q constant).
+    //  SSL 4000 G : égaliseur « 292 Pink Knob » : Q proportionnel au gain sur les cloches (courbes larges
+    //               aux petits gains, Q affiché atteint vers ±18 dB, comme l'égaliseur E au gain maximal) ;
+    //               plateaux plus raides avec léger creux / bosse (undershoot / overshoot) au point de bascule.
+    //  Neve VR    : « Q automatically varies with gain on all bands in peaking and shelving modes » (manuel VR
+    //               Legend) : cloches ET plateaux s'élargissent aux petits gains, de façon plus douce que la SSL.
+    //  Interprétation de Qmix à partir des documentations (aucune mesure de console fournie).
+    enum AnalogFlavour { flavourClean = 0, flavourSsl, flavourNeve, numFlavours };
+    inline const char* flavourName (int f) { static const char* n[numFlavours] = { "Clean", "SSL 4000 G", "Neve VR" }; return n[std::clamp (f, 0, numFlavours - 1)]; }
+    inline const char* flavourShort (int f) { static const char* n[numFlavours] = { "ANALOG", "SSL G", "NEVE VR" }; return n[std::clamp (f, 0, numFlavours - 1)]; }
+
+    inline double flavourQ (int flavour, int type, double q, double db)
+    {
+        const double x = std::min (1.0, std::abs (db) / 18.0);           // part du gain maximal des deux consoles (±18 dB)
+        switch (flavour)
+        {
+            case flavourSsl:
+                if (type == 0 /*bell*/)                 return q * (0.4 + 0.6 * std::pow (x, 0.8));
+                if (type == 1 || type == 2 /*shelves*/) return q * 1.6;
+                return q;
+            case flavourNeve:
+                if (type == 0 || type == 1 || type == 2) return q * (0.55 + 0.45 * x);
+                return q;
+            default: return q;
+        }
+    }
+
     //------------------------------------------------------------------ une section
     //  2e ordre : H(s) = m0 + (m1 s + m2) / (s² + k s + 1)
     //  1er ordre : H(s) = m0 + m2 / (1 + s)
@@ -347,8 +375,9 @@ namespace qmix
     }
 
     // conception numérique complète selon le mode (en phase linéaire : sections appariées, pour l'affichage d'appoint)
-    inline Design design (int type, double hz, double db, double q, int slopeIdx, double fs, int mode = zeroLatency, int* kinds = nullptr, bool reuse = false)
+    inline Design design (int type, double hz, double db, double q, int slopeIdx, double fs, int mode = zeroLatency, int* kinds = nullptr, bool reuse = false, int flavour = flavourClean)
     {
+        if (mode == analog) q = flavourQ (flavour, type, q, db);
         auto d = designAnalog (type, hz, db, q, slopeIdx);
         if (mode == zeroLatency) toBilinear (d, fs); else toMatched (d, fs, kinds, reuse);
         return d;

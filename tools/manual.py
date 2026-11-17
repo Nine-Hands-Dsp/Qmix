@@ -52,6 +52,14 @@ bars = os.path.join(TMP, "bars.png")
 a = crop_u(src, (350, 6, 610, 40)); b = crop_u(shot("qmix_status.png"), (350, 6, 610, 40))
 st_img = Image.new("RGB", (a.width, a.height * 2 + 12), (255, 255, 255)); st_img.paste(a, (0, 0)); st_img.paste(b, (0, a.height + 12)); st_img.save(bars)
 linear = os.path.join(TMP, "linear.png"); shot("qmix_linear.png").save(linear)
+flav = os.path.join(TMP, "flavours.png")
+_crops = [crop_u(shot("qmix_flavour%d.png" % i), (10, 120, 950, 400)) for i in range(3)]
+_lbl = ImageFont.truetype(os.path.join(FONTS, "Poppins-Bold.ttf"), 30)
+_fs = Image.new("RGB", (_crops[0].width, (_crops[0].height + 8) * 3), (255, 255, 255))
+for _i, (_c, _t) in enumerate(zip(_crops, ["ANALOG (Clean)", "SSL G", "NEVE VR"])):
+    _fs.paste(_c, (0, _i * (_c.height + 8)))
+    ImageDraw.Draw(_fs).text((24, _i * (_c.height + 8) + 18), _t, font=_lbl, fill=(79, 195, 247))
+_fs.save(flav)
 
 # ---------- couverture : fenêtre détourée (coins arrondis) sur fond noir, reflet au sol, halo bleu très doux ----------
 cutw, cuth = src.size
@@ -110,7 +118,7 @@ f += [P("<b>Qmix</b> est un égaliseur paramétrique de mixage : jusqu'à <b>24 
 f.append(P("Ce que Qmix sait faire", "h2"))
 f += bullets(["24 bandes : cloche, plateau bas, plateau haut, coupe-bas, coupe-haut (6 à 96 dB/oct, résonance réglable), notch, passe-bande, tilt.",
               "Chaque bande agit en stéréo, sur la gauche, la droite, le Mid ou le Side.",
-              "Modes <b>Zero Latency</b>, <b>Analog</b> et <b>Linear Phase</b> (section 6).",
+              "Modes <b>Zero Latency</b>, <b>Analog</b> (avec le caractère des consoles <b>SSL 4000 G</b> ou <b>Neve VR</b> au choix) et <b>Linear Phase</b> (section 6).",
               "Bandes dynamiques : la bande s'enfonce ou se relève toute seule quand le signal dépasse un seuil (section 7).",
               "Analyseur avant et après l'égaliseur, échelle d'affichage réglable, Gain Scale, sortie, presets, MIDI Learn sur tous les réglages."])
 
@@ -129,7 +137,7 @@ f.append(P("3. Vue d'ensemble", "h1"))
 f.append(img(annotated, W)); f.append(Spacer(1, 3 * mm))
 ov = [["N°", "Élément", "Rôle"],
       ["1", "Barre de presets", "Flèches : preset précédent / suivant ; clic sur le nom : liste des presets. Devient la ligne d'état pendant un réglage."],
-      ["2", "Mode de traitement", "ZERO LAT, ANALOG, LINEAR (section 6). Clic droit sur LINEAR, ou nouveau clic quand il est actif : qualité de la phase linéaire."],
+      ["2", "Mode de traitement", "ZERO LAT, ANALOG (ou SSL G / NEVE VR), LINEAR (section 6). Nouveau clic ou clic droit sur ANALOG : caractère de console ; sur LINEAR : qualité de la phase linéaire."],
       ["3", "Power", "Allume ou contourne tout l'égaliseur, en fondu, sans clic."],
       ["4", "Écran", "Grille fréquences / gains, analyseur, courbe de chaque bande et courbe totale (en blanc)."],
       ["5", "Point de bande", "Numéro et couleur de la bande ; se déplace à la souris (section 4)."],
@@ -180,6 +188,15 @@ f.append(P("Zero Latency", "h2"))
 f.append(P("Filtres numériques classiques (transformée bilinéaire, comme ReaEQ ou la plupart des égaliseurs « zéro latence »). Aucune latence, très léger pour le processeur. Contrepartie : près de la limite de l'audio numérique (la moitié de la fréquence d'échantillonnage), les cloches et plateaux aigus se resserrent. À 44,1 kHz, une cloche de +12 dB réglée à 15 kHz ne monte plus qu'à +3,8 dB à 17 kHz, au lieu des +9,2 dB du filtre analogique."))
 f.append(P("Analog (mode par défaut)", "h2"))
 f.append(P("Aucune latence, mais chaque section de filtre est <b>appariée au filtre analogique d'origine</b> : ses pôles sont transposés exactement, et ses zéros sont calculés pour retrouver la réponse analogique jusqu'à 20 kHz. Pour chaque section, Qmix compare plusieurs façons de faire et garde celle qui colle le mieux. Résultat : la même cloche à 15 kHz monte à +8,8 dB à 17 kHz (+9,2 dB en analogique). Sur les réglages courants, l'écart avec l'analogique est inférieur à 0,1 dB ; il reste sous 2 dB dans les cas extrêmes au-dessus de 15 kHz (pente de 96 dB/oct, cloche très étroite). La phase est celle d'un égaliseur analogique."))
+f.append(P("Caractère du mode Analog : Clean, SSL G, Neve VR", "h2"))
+f.append(P("En mode Analog, un nouveau clic sur le bouton (ou un clic droit, ou clic droit &gt; <b>Analog character</b>) choisit la façon dont les bandes réagissent au gain. Le nom du bouton suit le choix : <b>ANALOG</b>, <b>SSL G</b> ou <b>NEVE VR</b>. Le choix est enregistré avec le projet et avec les presets."))
+f.append(table([["Caractère", "Cloches", "Plateaux"],
+                ["Clean", "Q constant : la largeur ne change pas avec le gain.", "Plateau du 2e ordre tel que réglé."],
+                ["SSL 4000 G", "Égaliseur « 292 Pink Knob » de la SSL 4000 G : Q proportionnel. Les petites corrections sont larges, la courbe se resserre en poussant ; le Q affiché est atteint vers ±18 dB (où, d'après les utilisateurs, les courbes E et G se rejoignent). Avec Q = 1 : 2,4 octaves à 3 dB, 1,8 à 9 dB, 1,4 à 18 dB.", "Plus raides, avec le léger creux (undershoot) avant une accentuation et la bosse (overshoot) avant une coupe, typiques de la G : environ −1,3 dB pour un plateau bas de +12 dB."],
+                ["Neve VR", "Console Neve VR Legend : le manuel indique que « le Q varie automatiquement avec le gain sur toutes les bandes, en cloche comme en plateau » (plus de gain, plus de Q). Loi plus douce que la SSL : 2,1 octaves à 3 dB, 1,7 à 9 dB, 1,4 à 18 dB (Q = 1).", "S'élargissent aussi aux petits gains : plateaux très progressifs et doux, qui retrouvent le Q réglé vers ±18 dB. Q = 2 donne le plateau résonant du bouton HI-Q de la console."]],
+               [24 * mm, (W - 24 * mm) * 0.58, (W - 24 * mm) * 0.42]))
+f.append(P("Ces caractères reproduisent la façon dont les deux consoles réagissent (largeur selon le gain, forme des plateaux), d'après les documentations des constructeurs et des émulations reconnues ; ce ne sont pas des mesures de consoles réelles. Ils ne changent que les courbes : pas de saturation ni de souffle ajoutés. Coupe-bas, coupe-haut, notch, passe-bande et tilt ne changent pas. Les plages de fréquences et de gain restent celles de Qmix (les consoles vont de ±18 à ±20 dB environ, de 30 Hz à 17 kHz).", "small"))
+f.append(KeepTogether([img(flav, W * 0.92), P("Même réglage (plateau bas +8 dB à 90 Hz, −4 dB à 400 Hz, +4 dB à 3 kHz) en Clean, SSL G et Neve VR.", "small")]))
 f.append(P("Linear Phase", "h2"))
 f.append(P("L'égaliseur devient un filtre à réponse impulsionnelle finie symétrique, calculé à partir de la réponse analogique exacte de toutes les bandes : <b>aucune rotation de phase</b>, quel que soit le réglage. Utile sur un bus, un mix ou des pistes enregistrées à plusieurs micros, quand on veut corriger sans déplacer les transitoires. Les bandes Mid / Side sont prises en compte exactement (matrice de quatre filtres)."))
 f += bullets(["Il y a une <b>latence</b>, annoncée au DAW qui la compense : <b>Low</b> 2 048 échantillons (42,7 ms à 48 kHz), <b>Medium</b> 4 096 (85,3 ms, par défaut), <b>High</b> 8 192 (170,7 ms). Plus la qualité est haute, plus les coupe-bas raides et les cloches très étroites dans le grave sont précis.",
@@ -244,13 +261,14 @@ f.append(P("12. Conseils d'utilisation", "h1"))
 f += bullets(["Pour une guitare, placez Qmix <b>après</b> Ampire et Impulse pour sculpter le son d'ampli (preset Guitar Cab Tamer), ou <b>avant</b> l'ampli pour préparer le signal (coupe-bas, bosse dans les médiums).",
               "Avec une 7 cordes en Sol ou plus bas, réglez le coupe-bas autour de 40 à 60 Hz plutôt que 80 Hz, pour garder la fondamentale de la corde grave.",
               "Pour une résonance qui ne sort que sur certaines notes, préférez une cloche dynamique (RANGE négatif) à une cloche fixe : le reste du temps, le son n'est pas touché.",
-              "Mode Analog pour le suivi et les prises (aucune latence), Linear Phase pour un bus ou un mix quand la phase compte."])
+              "Mode Analog pour le suivi et les prises (aucune latence), Linear Phase pour un bus ou un mix quand la phase compte.",
+              "SSL G pour des retouches larges qui se resserrent quand on pousse (voix, bus, caisse claire) ; Neve VR pour des corrections très douces et des plateaux progressifs (grave et air d'un mix) ; Clean pour des corrections précises à Q constant (résonances)."])
 
 # ---------- 14. Caractéristiques ----------
 f.append(KeepTogether([P("13. Caractéristiques techniques", "h1"), table([
     ["Format", "VST3 (Windows 64 bits, macOS universel), mono ou stéréo"],
     ["Bandes", "24 ; fréquence 10 Hz à 30 kHz, gain ±30 dB, Q 0,025 à 40, pentes 6 à 96 dB/oct"],
-    ["Modes", "Zero Latency (bilinéaire), Analog (sections appariées à l'analogique), Linear Phase (RIF symétrique, fenêtre de Hann)"],
+    ["Modes", "Zero Latency (bilinéaire), Analog (sections appariées à l'analogique ; caractère Clean, SSL 4000 G ou Neve VR), Linear Phase (RIF symétrique, fenêtre de Hann)"],
     ["Latence", "0 en Zero Latency et Analog ; 2 048 / 4 096 / 8 192 échantillons en Linear Phase (Low / Medium / High)"],
     ["Dynamique", "détecteur passe-bande sur la bande, attaque 4 ms, retour 120 ms, rapport 2:1, genou 6 dB, seuil −60 à 0 dB, plage ±30 dB"],
     ["Moteur", "filtres à variables d'état (calcul en double précision), réglages lissés sans bruit de zipper"],

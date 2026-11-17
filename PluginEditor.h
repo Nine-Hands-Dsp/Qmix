@@ -151,6 +151,7 @@ public:
     void showSlopeMenu (int band);
     void showPlaceMenu (int band);
     void showQualityMenu();
+    void showFlavourMenu();
     juce::PopupMenu::Options menuAt() const;
     juce::String bandSummary (int b) const;
     float glow() const { return 0.25f * (float) (juce::jlimit (0, 3, proc.glowIdx.load()) + 1); }

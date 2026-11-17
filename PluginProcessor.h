@@ -66,6 +66,7 @@ public:
     //------------------------------------------------------------------ mode de traitement (enregistré avec le projet)
     std::atomic<int> phaseMode { qmix::analog };     // Zero Latency / Analog / Linear Phase
     std::atomic<int> lpQuality { 1 };                // Low / Medium / High
+    std::atomic<int> analogFlavour { qmix::flavourClean };   // caractère du mode Analog : Clean / SSL 4000 G / Neve VR
     static int firLength (int quality) { static const int n[3] = { 4096, 8192, 16384 }; return n[juce::jlimit (0, 2, quality)]; }
     int latencyFor (int mode, int quality) const { return mode == qmix::linearPhase ? firLength (quality) / 2 : 0; }
 

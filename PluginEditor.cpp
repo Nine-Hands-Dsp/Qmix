@@ -426,7 +426,8 @@ void Display::rebuildCurves()
             for (int i = 0; i < kPts; ++i) out[(size_t) i] = (float) qmix::analogDb (d, freqs[(size_t) i]);
             return;
         }
-        const auto des = qmix::design (v.type, v.freq, gainDb, v.q, v.slope, fs, mode == qmix::zeroLatency ? qmix::zeroLatency : qmix::analog);
+        const int flav = (mode == qmix::analog) ? ed.proc.analogFlavour.load() : (int) qmix::flavourClean;
+        const auto des = qmix::design (v.type, v.freq, gainDb, v.q, v.slope, fs, mode == qmix::zeroLatency ? qmix::zeroLatency : qmix::analog, nullptr, false, flav);
         for (int i = 0; i < kPts; ++i)
         {
             const double f = freqs[(size_t) i];
@@ -987,7 +988,7 @@ void QmixEditor::paint (Graphics& g)
     g.drawText ("RANGE", Rectangle<float> (226 * s, 482 * s, 160 * s, 14 * s), Justification::centredLeft, false);
     static const char* an[3] = { "OFF", "POST", "PRE+POST" };
     for (int i = 0; i < 3; ++i) seg (segAnalyzer (i).withWidth (i == 2 ? 70 * s : 52 * s).withX (segAnalyzer (i).getX() + (i == 2 ? 0 : 0)), an[i], proc.analyzerMode.load() == i, i == 0, i == 2);
-    static const char* md[3] = { "ZERO LAT", "ANALOG", "LINEAR" };
+    const String md[3] = { "ZERO LAT", qmix::flavourShort (proc.analogFlavour.load()), "LINEAR" };
     for (int i = 0; i < 3; ++i) seg (segMode (i), md[i], proc.phaseMode.load() == i, i == 0, i == 2);
     static const char* rn[4] = { "6", "12", "24", "30" };
     for (int i = 0; i < 4; ++i) seg (segRange (i), String (rn[i]) + " dB", proc.rangeIdx.load() == i, i == 0, i == 3);
@@ -1014,7 +1015,9 @@ void QmixEditor::mouseDown (const MouseEvent& e)
     const auto p = e.position;
     if (e.mods.isPopupMenu())
     {
-        if (segMode (qmix::linearPhase).contains (p)) showQualityMenu(); else showMainMenu();
+        if (segMode (qmix::linearPhase).contains (p)) showQualityMenu();
+        else if (segMode (qmix::analog).contains (p)) showFlavourMenu();
+        else showMainMenu();
         return;
     }
     if (pill().contains (p))
@@ -1053,6 +1056,7 @@ void QmixEditor::mouseDown (const MouseEvent& e)
     for (int i = 0; i < 3; ++i) if (segMode (i).contains (p))
     {
         if (e.mods.isPopupMenu() || (i == qmix::linearPhase && proc.phaseMode.load() == qmix::linearPhase)) { showQualityMenu(); return; }
+        if (i == qmix::analog && proc.phaseMode.load() == qmix::analog) { showFlavourMenu(); return; }
         proc.phaseMode = i; display.rebuildCurves(); repaint(); showStatus (String (qmix::modeName (i)).toUpperCase());
         return;
     }
@@ -1159,6 +1163,21 @@ void QmixEditor::showPlaceMenu (int band)
     m.showMenuAsync (menuAt(), [this, band] (int r) { if (r > 0) proc.setBandParam (band, "place", (float) (r - 1)); });
 }
 
+void QmixEditor::showFlavourMenu()
+{
+    PopupMenu m; m.setLookAndFeel (&menuLnf);
+    QmixMenu::addHeader (m, fonts, QmixMenu::icoEq, cAccent, "Analog", "Console character");
+    static const char* sub[qmix::numFlavours] = { "Clean (constant Q)", "SSL 4000 G  (292 Pink Knob)", "Neve VR Legend" };
+    for (int i = 0; i < qmix::numFlavours; ++i) m.addItem (1 + i, sub[i], true, proc.analogFlavour.load() == i);
+    m.showMenuAsync (menuAt(), [this] (int r)
+    {
+        if (r <= 0) return;
+        proc.analogFlavour = r - 1; proc.phaseMode = qmix::analog;
+        showStatus ("ANALOG  " + String (qmix::flavourName (r - 1)).toUpperCase());
+        display.rebuildCurves(); repaint();
+    });
+}
+
 void QmixEditor::showQualityMenu()
 {
     PopupMenu m; m.setLookAndFeel (&menuLnf);
@@ -1261,6 +1280,9 @@ void QmixEditor::showMainMenu()
     for (int i = 0; i < 3; ++i) qual.addItem (160 + i, qn[i], true, proc.lpQuality.load() == i);
     m.addSubMenu ("Presets", pres);
     m.addSubMenu ("Processing mode", modes);
+    PopupMenu flav;
+    for (int i = 0; i < qmix::numFlavours; ++i) flav.addItem (170 + i, qmix::flavourName (i), true, proc.analogFlavour.load() == i);
+    m.addSubMenu ("Analog character", flav);
     m.addSubMenu ("Linear phase quality", qual);
     m.addSubMenu ("Analyzer", an);
     m.addSubMenu ("Display range", rg);
@@ -1281,6 +1303,7 @@ void QmixEditor::showMainMenu()
         else if (r >= 140 && r < 144) proc.glowIdx = r - 140;
         else if (r >= 150 && r < 153) { proc.phaseMode = r - 150; display.rebuildCurves(); }
         else if (r >= 160 && r < 163) proc.lpQuality = r - 160;
+        else if (r >= 170 && r < 170 + qmix::numFlavours) { proc.analogFlavour = r - 170; proc.phaseMode = qmix::analog; display.rebuildCurves(); }
         repaint(); display.repaint();
     });
 }
@@ -1371,7 +1394,8 @@ void QmixEditor::timerCallback()
         const float dd = proc.dynDb[b].load();
         if (std::abs (dd - lastDyn[(size_t) b]) > 0.05f) { lastDyn[(size_t) b] = dd; changed = true; }
     }
-    if (proc.phaseMode.load() != lastMode) { lastMode = proc.phaseMode.load(); changed = true; repaint(); }
+    const int modeNow = proc.phaseMode.load() * 10 + proc.analogFlavour.load();
+    if (modeNow != lastMode) { lastMode = modeNow; changed = true; repaint(); }
     if (changed) { display.rebuildCurves(); panel.repaint(); if (panel.band() >= 0 && panel.wantsWidthChange()) resized(); askRepaint (getLocalBounds().removeFromBottom ((int) (70 * sc()))); }
 
     // MIDI Learn
