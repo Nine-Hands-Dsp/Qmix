@@ -4,6 +4,7 @@
 #include <array>
 #include <atomic>
 #include "EqMath.h"
+#include "ConsoleColour.h"
 
 //==============================================================================
 //  Qmix (NINE HANDS | DSP) : égaliseur paramétrique 24 bandes
@@ -50,7 +51,8 @@ public:
                           *q = nullptr, *slope = nullptr, *place = nullptr, *dyn = nullptr, *thresh = nullptr, *range = nullptr;
     };
     BandParams bandParam[qmix::kNumBands];
-    std::atomic<float>* outParam = nullptr, *powerParam = nullptr, *scaleParam = nullptr;
+    std::atomic<float>* outParam = nullptr, *powerParam = nullptr, *scaleParam = nullptr, *colorParam = nullptr;
+    bool colourActive() const { return phaseMode.load() == qmix::analog && analogFlavour.load() != qmix::flavourClean && colorParam->load() > 0.05f; }
 
     // valeur réelle d'une bande (lue par l'interface)
     struct BandValues
@@ -150,6 +152,8 @@ private:
     int dryPos = 0;
     int activeMode = -1, activeLatency = 0, fadeIn = 0;
 
+    qmix::ConsoleColour colour;
+    double colorSmooth = 0.5;
     juce::AudioBuffer<float> dryBuf;
     double outSmooth = 1.0, powerSmooth = 1.0;
     double sr = 48000.0;

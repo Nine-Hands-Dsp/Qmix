@@ -17,7 +17,7 @@
 - **Placement stéréo par bande** : stéréo, gauche, droite, Mid ou Side.
 - **Trois modes de traitement** :
   - *Zero Latency* : filtres classiques (transformée bilinéaire, comme ReaEQ), aucune latence ;
-  - *Analog* : chaque section est appariée au filtre analogique d'origine ; les cloches et plateaux aigus gardent leur forme jusqu'à 20 kHz, aucune latence. Trois caractères : *Clean* (Q constant), *SSL 4000 G* (Q proportionnel de l'égaliseur « 292 Pink Knob », plateaux plus raides avec creux / bosse au point de bascule) et *Neve VR* (Q qui varie avec le gain sur toutes les bandes, plateaux compris, d'après le manuel de la VR Legend) ;
+  - *Analog* : chaque section est appariée au filtre analogique d'origine ; les cloches et plateaux aigus gardent leur forme jusqu'à 20 kHz, aucune latence. Trois caractères : *Clean* (Q constant), *SSL 4000 G* (Q proportionnel de l'égaliseur « 292 Pink Knob », plateaux plus raides avec creux / bosse au point de bascule) et *Neve VR* (Q qui varie avec le gain sur toutes les bandes, plateaux compris, d'après le manuel de la VR Legend). En SSL G et Neve VR, le potard **COLOR** ajoute la couleur de la console (saturation légère, harmonique 2 côté SSL, grave saturé côté Neve), sans latence ;
   - *Linear Phase* : filtres RIF symétriques calculés sur la réponse analogique exacte, aucune rotation de phase ; latence de 42,7 / 85,3 / 170,7 ms à 48 kHz (qualité Low / Medium / High).
 - **Bandes dynamiques** (cloche, plateaux, tilt) : seuil et plage réglables ; la bande bouge de 2 dB par dB au-dessus du seuil (genou doux), jusqu'à la plage choisie, en atténuation ou en accentuation.
 - **Courbe interactive** : double-clic pour créer une bande, glisser pour la fréquence et le gain (Maj : réglage fin), molette pour le Q, double-clic sur un point pour couper la bande, clic droit pour son menu.
@@ -49,5 +49,6 @@ cmake --build build --config Release
 
 | Version | Changements |
 |---|---|
+| 1.2.0 | Couleur de console (potard COLOR) en Analog SSL G et Neve VR, sans latence (anti-repliement ADAA). |
 | 1.1.0 | Mode Analog : caractères SSL 4000 G et Neve VR (Clean reste disponible), choix enregistré avec le projet et les presets. |
 | 1.0.0 | Première version : 24 bandes, modes Zero Latency / Analog / Linear Phase, bandes dynamiques, analyseur, presets, MIDI Learn, anti-gel v2. |

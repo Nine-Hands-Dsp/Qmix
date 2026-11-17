@@ -160,7 +160,7 @@ public:
 
     QmixUi::Display display;
     QmixUi::BandPanel panel;
-    QmixUi::Knob outKnob, scaleKnob;
+    QmixUi::Knob outKnob, scaleKnob, colorKnob;
 
 private:
     friend int main();                         // outil de captures (tools/render)
@@ -188,7 +188,7 @@ private:
     juce::Rectangle<float> segAnalyzer (int i) const, segRange (int i) const, segMode (int i) const;
     int hoverZone = 0;
     std::array<QmixProcessor::BandValues, qmix::kNumBands> lastVals;
-    float lastOut = 0, lastScale = 0;
+    float lastOut = 0, lastScale = 0, lastColor = -1;
     bool lastPower = true;
     float powerGlow = 1.0f;
     int lastAnalyzer = -1, lastRange = -1, lastGlow = -1, lastMode = -1;

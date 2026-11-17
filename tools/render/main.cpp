@@ -181,6 +181,7 @@ int main()
     }
     {
         p.phaseMode = qmix::analog; p.prepareToPlay (48000.0, 512);
+        if (auto* cp = p.apvts.getParameter ("color")) cp->setValueNotifyingHost (0.0f);       // courbes seules (couleur coupée)
         for (int fl : { 1, 2 })
         {
             p.analogFlavour = fl;
@@ -196,6 +197,38 @@ int main()
             std::cout << "Analog " << qmix::flavourName (fl) << " : ecart mesure / courbe " << worst << " dB\n";
         }
         p.analogFlavour = 0;
+    }
+
+    // 4 ter. couleur de console : harmoniques (sinus pur, égaliseur à plat)
+    {
+        p.phaseMode = qmix::analog; p.prepareToPlay (48000.0, 512); p.loadFactoryPreset (0);
+        MidiBuffer m;
+        auto harm = [&] (const AudioBuffer<float>& y, int start, int len, double f, int h)
+        {
+            std::complex<double> acc (0, 0);
+            for (int nn = 0; nn < len; ++nn)
+            {
+                const double w = 0.5 - 0.5 * std::cos (2 * MathConstants<double>::pi * nn / (len - 1));
+                acc += w * (double) y.getSample (0, start + nn) * std::polar (1.0, -2 * MathConstants<double>::pi * f * h * nn / 48000.0);
+            }
+            return std::abs (acc);
+        };
+        for (int fl : { 0, 1, 2 })
+            for (float col : { 50.0f, 100.0f })
+                for (auto [f, lev] : std::vector<std::pair<double, double>> { { 1000.0, -18.0 }, { 1000.0, -6.0 }, { 60.0, -12.0 } })
+                {
+                    p.analogFlavour = fl;
+                    if (auto* cp = p.apvts.getParameter ("color")) cp->setValueNotifyingHost (col / 100.0f);
+                    const int N = 48000; AudioBuffer<float> y (2, N);
+                    const double a = Decibels::decibelsToGain (lev);
+                    for (int nn = 0; nn < N; ++nn) { const float v = (float) (a * std::sin (2 * MathConstants<double>::pi * f * nn / 48000.0)); y.setSample (0, nn, v); y.setSample (1, nn, v); }
+                    for (int s0 = 0; s0 < N; s0 += 512) { AudioBuffer<float> blk (y.getArrayOfWritePointers(), 2, s0, jmin (512, N - s0)); p.processBlock (blk, m); }
+                    const double h1 = harm (y, 24000, 24000, f, 1), h2 = harm (y, 24000, 24000, f, 2), h3 = harm (y, 24000, 24000, f, 3), h5 = harm (y, 24000, 24000, f, 5);
+                    std::cout << "  couleur " << qmix::flavourName (fl) << " " << col << " %, " << f << " Hz " << lev << " dBFS : H2 " << 20 * std::log10 (h2 / h1 + 1e-12)
+                              << " dB, H3 " << 20 * std::log10 (h3 / h1 + 1e-12) << " dB, H5 " << 20 * std::log10 (h5 / h1 + 1e-12) << " dB\n";
+                }
+        p.analogFlavour = 0;
+        if (auto* cp = p.apvts.getParameter ("color")) cp->setValueNotifyingHost (0.5f);
     }
 
     // 5. captures (notice, README de contrôle)

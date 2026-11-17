@@ -832,7 +832,7 @@ void Display::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& w)
 //  Fenêtre
 //==============================================================================
 QmixEditor::QmixEditor (QmixProcessor& p)
-    : AudioProcessorEditor (p), proc (p), display (*this), panel (*this), outKnob (*this, "OUTPUT"), scaleKnob (*this, "GAIN SCALE")
+    : AudioProcessorEditor (p), proc (p), display (*this), panel (*this), outKnob (*this, "OUTPUT"), scaleKnob (*this, "GAIN SCALE"), colorKnob (*this, "COLOR")
 {
     fonts.reg  = Typeface::createSystemTypefaceFor (BinaryData::PoppinsRegular_ttf, BinaryData::PoppinsRegular_ttfSize);
     fonts.med  = Typeface::createSystemTypefaceFor (BinaryData::PoppinsMedium_ttf, BinaryData::PoppinsMedium_ttfSize);
@@ -846,6 +846,10 @@ QmixEditor::QmixEditor (QmixProcessor& p)
     addChildComponent (panel);
     addAndMakeVisible (outKnob);
     addAndMakeVisible (scaleKnob);
+    addAndMakeVisible (colorKnob);
+    colorKnob.attach (proc.apvts.getParameter ("color"), cAccent, false);
+    colorKnob.format = [] (float v) { return String ((int) std::round (v)) + " %"; };
+    colorKnob.onFacade = true;
     outKnob.attach (proc.apvts.getParameter ("output"), cAccent, true);
     outKnob.format = [] (float v) { return dbStr (v); };
     scaleKnob.attach (proc.apvts.getParameter ("scale"), cAccent, false);
@@ -880,6 +884,7 @@ void QmixEditor::resized()
     display.setBounds (Rectangle<float> (10 * s, 46 * s, 940 * s, 424 * s).toNearestInt());
     panel.setBounds (Rectangle<float> (0, 0, panel.desiredWidth() * s, 90 * s).withCentre ({ 480 * s, (470 - 14 - 45) * s }).toNearestInt());
     panel.resized();
+    colorKnob.setBounds (Rectangle<float> (690 * s, 474 * s, 64 * s, 64 * s).toNearestInt());
     scaleKnob.setBounds (Rectangle<float> (772 * s, 474 * s, 64 * s, 64 * s).toNearestInt());
     outKnob.setBounds   (Rectangle<float> (860 * s, 474 * s, 64 * s, 64 * s).toNearestInt());
     if (! (hostLock.hostMaximized()))
@@ -1380,6 +1385,12 @@ void QmixEditor::timerCallback()
     }
     const float out = proc.outParam->load(), scl = proc.scaleParam->load();
     if (std::abs (out - lastOut) > 0.005f) { lastOut = out; showStatus ("OUTPUT  " + dbStr (out)); }
+    const float col = proc.colorParam->load();
+    const bool colLook = proc.phaseMode.load() == qmix::analog && proc.analogFlavour.load() != qmix::flavourClean;
+    if (colorKnob.enabledLook != colLook) { colorKnob.enabledLook = colLook; colorKnob.repaint(); }
+    if (lastColor >= 0 && std::abs (col - lastColor) > 0.05f)
+        showStatus ("CONSOLE COLOR  " + String ((int) std::round (col)) + " %" + (colLook ? "  " + String (qmix::flavourName (proc.analogFlavour.load())).toUpperCase() : String ("  (ANALOG SSL G / NEVE VR)")));
+    lastColor = col;
     if (std::abs (scl - lastScale) > 0.05f) { lastScale = scl; changed = true; showStatus ("GAIN SCALE  " + String ((int) std::round (scl)) + " %"); }
     const bool pw = proc.powerParam->load() > 0.5f;
     if (pw != lastPower) { lastPower = pw; changed = true; showStatus (pw ? "QMIX ON" : "QMIX BYPASSED"); }
@@ -1419,5 +1430,5 @@ void QmixEditor::timerCallback()
 
     display.updateSpectrum();
     panel.tick();
-    outKnob.tick(); scaleKnob.tick();
+    outKnob.tick(); scaleKnob.tick(); colorKnob.tick();
 }

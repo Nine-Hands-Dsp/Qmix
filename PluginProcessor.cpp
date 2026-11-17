@@ -28,6 +28,8 @@ AudioProcessorValueTreeState::ParameterLayout QmixProcessor::createLayout()
 
     l.add (std::make_unique<AudioParameterBool> (ParameterID { "power", 1 }, "Power", true));
     l.add (std::make_unique<AudioParameterFloat> (ParameterID { "output", 1 }, "Output", NormalisableRange<float> (-36.0f, 36.0f, 0.01f), 0.0f, dB));
+    l.add (std::make_unique<AudioParameterFloat> (ParameterID { "color", 1 }, "Console Color", NormalisableRange<float> (0.0f, 100.0f, 0.1f), 50.0f,
+                                                  AudioParameterFloatAttributes().withLabel ("%")));
     l.add (std::make_unique<AudioParameterFloat> (ParameterID { "scale", 1 }, "Gain Scale", NormalisableRange<float> (0.0f, 200.0f, 0.1f), 100.0f,
                                                   AudioParameterFloatAttributes().withLabel ("%")));
     for (int b = 0; b < qmix::kNumBands; ++b)
@@ -197,6 +199,7 @@ QmixProcessor::QmixProcessor()
     outParam   = apvts.getRawParameterValue ("output");
     powerParam = apvts.getRawParameterValue ("power");
     scaleParam = apvts.getRawParameterValue ("scale");
+    colorParam = apvts.getRawParameterValue ("color");
 
     for (int i = 0; i < 128; ++i) { ccMap[i] = -1; ccMin[i] = 127; ccMax[i] = 0; }
     for (int i = 0; i < kMaxParams; ++i) { pendingValue[i] = 0.0f; pendingSet[i] = false; }
@@ -234,6 +237,9 @@ void QmixProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     monoTmp.assign ((size_t) maxBlock * 2, 0.0f);
     for (auto& d : dsp) { d.reset(); d.primed = false; d.amt = 0.0; d.lastType = -1; d.env = 0.0; d.dynGain = 0.0; }
     outSmooth = Decibels::decibelsToGain ((double) outParam->load());
+    colour.prepare (sampleRate);
+    colour.setMixTime (0.02);
+    colorSmooth = colorParam->load() * 0.01;
     powerSmooth = powerParam->load() > 0.5f ? 1.0 : 0.0;
     for (auto& c : conv)
     {
@@ -554,6 +560,20 @@ void QmixProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     }
     else
         runBands (L, R, n, false, mode);
+
+    //-------------------------------------------------------------- couleur de console (Analog SSL G / Neve VR), après l'égalisation
+    {
+        const int fl = analogFlavour.load();
+        const bool on = mode == qmix::analog && fl != qmix::flavourClean && colorParam->load() > 0.05f;
+        colorSmooth += (colorParam->load() * 0.01 - colorSmooth) * jmin (1.0, (double) n / (0.03 * sr));
+        if (on) colour.setup (fl == qmix::flavourSsl ? qmix::ConsoleColour::ssl : qmix::ConsoleColour::neve, colorSmooth);
+        if (on || colour.mixLevel() > 1.0e-6)
+            for (int i = 0; i < n; ++i)
+            {
+                L[i] = (float) colour.process (L[i], 0, on ? 1.0 : 0.0);
+                if (R != nullptr) R[i] = (float) colour.process (R[i], 1, on ? 1.0 : 0.0);
+            }
+    }
 
     //-------------------------------------------------------------- sortie + Power (fondu, sans clic)
     const double outT = Decibels::decibelsToGain ((double) outParam->load());

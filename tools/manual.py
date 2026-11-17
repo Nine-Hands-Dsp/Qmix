@@ -35,7 +35,7 @@ k = src.width / 960.0                                  # repère de l'interface 
 
 # ---------- capture annotée ----------
 marks = [(1, 352, 23), (2, 663, 23), (3, 906, 23), (4, 70, 80), (5, 690, 196), (6, 248, 425), (7, 258, 368), (8, 556, 368), (9, 703, 372),
-         (10, 14, 509), (11, 214, 509), (12, 410, 509), (13, 790, 472), (14, 878, 472)]
+         (10, 14, 509), (11, 214, 509), (12, 410, 509), (13, 790, 472), (14, 878, 472), (15, 708, 472)]
 ann = src.copy(); dr = ImageDraw.Draw(ann)
 fnt = ImageFont.truetype(os.path.join(FONTS, "Poppins-Bold.ttf"), 22)
 for n, x, y in marks:
@@ -149,7 +149,8 @@ ov = [["N°", "Élément", "Rôle"],
       ["11", "RANGE", "Échelle de l'écran : ±6, ±12, ±24 ou ±30 dB. Ne change pas le son."],
       ["12", "Bandes et latence", "Nombre de bandes utilisées sur 24, latence du mode en cours."],
       ["13", "GAIN SCALE", "Multiplie le gain (et la plage dynamique) de toutes les bandes : 0 à 200 %."],
-      ["14", "OUTPUT", "Volume de sortie, −36 à +36 dB."]]
+      ["14", "OUTPUT", "Volume de sortie, −36 à +36 dB."],
+      ["15", "COLOR", "Couleur de console SSL G ou Neve VR, 0 à 100 % (actif seulement en Analog SSL G / NEVE VR)."]]
 f.append(table(ov, [9 * mm, 40 * mm, W - 49 * mm]))
 f.append(PageBreak())
 
@@ -195,8 +196,15 @@ f.append(table([["Caractère", "Cloches", "Plateaux"],
                 ["SSL 4000 G", "Égaliseur « 292 Pink Knob » de la SSL 4000 G : Q proportionnel. Les petites corrections sont larges, la courbe se resserre en poussant ; le Q affiché est atteint vers ±18 dB (où, d'après les utilisateurs, les courbes E et G se rejoignent). Avec Q = 1 : 2,4 octaves à 3 dB, 1,8 à 9 dB, 1,4 à 18 dB.", "Plus raides, avec le léger creux (undershoot) avant une accentuation et la bosse (overshoot) avant une coupe, typiques de la G : environ −1,3 dB pour un plateau bas de +12 dB."],
                 ["Neve VR", "Console Neve VR Legend : le manuel indique que « le Q varie automatiquement avec le gain sur toutes les bandes, en cloche comme en plateau » (plus de gain, plus de Q). Loi plus douce que la SSL : 2,1 octaves à 3 dB, 1,7 à 9 dB, 1,4 à 18 dB (Q = 1).", "S'élargissent aussi aux petits gains : plateaux très progressifs et doux, qui retrouvent le Q réglé vers ±18 dB. Q = 2 donne le plateau résonant du bouton HI-Q de la console."]],
                [24 * mm, (W - 24 * mm) * 0.58, (W - 24 * mm) * 0.42]))
-f.append(P("Ces caractères reproduisent la façon dont les deux consoles réagissent (largeur selon le gain, forme des plateaux), d'après les documentations des constructeurs et des émulations reconnues ; ce ne sont pas des mesures de consoles réelles. Ils ne changent que les courbes : pas de saturation ni de souffle ajoutés. Coupe-bas, coupe-haut, notch, passe-bande et tilt ne changent pas. Les plages de fréquences et de gain restent celles de Qmix (les consoles vont de ±18 à ±20 dB environ, de 30 Hz à 17 kHz).", "small"))
+f.append(P("Ces caractères reproduisent la façon dont les deux consoles réagissent (largeur selon le gain, forme des plateaux), d'après les documentations des constructeurs et des émulations reconnues ; ce ne sont pas des mesures de consoles réelles. Ils changent les courbes ; la saturation est réglée à part avec COLOR (ci-dessous). Coupe-bas, coupe-haut, notch, passe-bande et tilt ne changent pas. Les plages de fréquences et de gain restent celles de Qmix (les consoles vont de ±18 à ±20 dB environ, de 30 Hz à 17 kHz).", "small"))
 f.append(KeepTogether([img(flav, W * 0.92), P("Même réglage (plateau bas +8 dB à 90 Hz, −4 dB à 400 Hz, +4 dB à 3 kHz) en Clean, SSL G et Neve VR.", "small")]))
+f.append(P("Couleur de console (COLOR)", "h2"))
+f.append(P("En <b>SSL G</b> et <b>NEVE VR</b>, le potard <b>COLOR</b> (en bas de la fenêtre) ajoute la saturation légère du trajet audio de la console, après l'égalisation. 0 % : aucune couleur. 50 % (par défaut) : couleur discrète, à peu près celle d'une console à son niveau nominal. 100 % : console poussée. La couleur dépend du niveau : plus le signal est fort, plus elle s'entend. Le potard est grisé en Clean, Zero Latency et Linear Phase, où il n'agit pas."))
+f.append(table([["Console", "Ce qui donne la couleur", "Ce que fait Qmix"],
+                ["SSL 4000 G", "Une chaîne d'amplificateurs opérationnels NE5532 / 5534 et le VCA de sortie ; la distorsion d'un VCA se limite surtout aux harmoniques 2 et 3, presque uniquement la 2.", "Saturation douce asymétrique : harmonique 2 dominante, harmonique 3 quand on pousse ; identique sur tout le spectre. À 50 % et −18 dBFS : H2 ≈ −60 dB ; à 100 % et −6 dBFS : H2 ≈ −28 dB, H3 ≈ −40 dB."],
+                ["Neve VR", "Entrée et sorties à transformateur, nombreux condensateurs de liaison ; la couleur Neve est attribuée aux transformateurs, qui saturent davantage dans le grave.", "Saturation plus ronde et presque symétrique, renforcée sous 150 Hz : dans le grave, l'harmonique 3 domine. À 50 % et −18 dBFS : H2 ≈ −66 dB à 1 kHz ; à 60 Hz et −12 dBFS : H3 ≈ −56 dB."]],
+               [24 * mm, (W - 24 * mm) * 0.48, (W - 24 * mm) * 0.52]))
+f.append(P("Interprétation de Qmix à partir des descriptions des circuits, pas une mesure de console réelle. Aucune latence ajoutée : l'anti-repliement est fait sans suréchantillonnage (méthode ADAA). Pas de souffle ajouté. Comme toute saturation, la couleur rend la réponse dépendante du niveau : pour une correction strictement linéaire, mettez COLOR à 0 % ou choisissez Clean.", "small"))
 f.append(P("Linear Phase", "h2"))
 f.append(P("L'égaliseur devient un filtre à réponse impulsionnelle finie symétrique, calculé à partir de la réponse analogique exacte de toutes les bandes : <b>aucune rotation de phase</b>, quel que soit le réglage. Utile sur un bus, un mix ou des pistes enregistrées à plusieurs micros, quand on veut corriger sans déplacer les transitoires. Les bandes Mid / Side sont prises en compte exactement (matrice de quatre filtres)."))
 f += bullets(["Il y a une <b>latence</b>, annoncée au DAW qui la compense : <b>Low</b> 2 048 échantillons (42,7 ms à 48 kHz), <b>Medium</b> 4 096 (85,3 ms, par défaut), <b>High</b> 8 192 (170,7 ms). Plus la qualité est haute, plus les coupe-bas raides et les cloches très étroites dans le grave sont précis.",
@@ -270,6 +278,7 @@ f.append(KeepTogether([P("13. Caractéristiques techniques", "h1"), table([
     ["Bandes", "24 ; fréquence 10 Hz à 30 kHz, gain ±30 dB, Q 0,025 à 40, pentes 6 à 96 dB/oct"],
     ["Modes", "Zero Latency (bilinéaire), Analog (sections appariées à l'analogique ; caractère Clean, SSL 4000 G ou Neve VR), Linear Phase (RIF symétrique, fenêtre de Hann)"],
     ["Latence", "0 en Zero Latency et Analog ; 2 048 / 4 096 / 8 192 échantillons en Linear Phase (Low / Medium / High)"],
+    ["Couleur", "COLOR 0 à 100 % en Analog SSL G (harmonique 2 dominante) et Neve VR (grave saturé, harmonique 3) ; anti-repliement ADAA, sans latence"],
     ["Dynamique", "détecteur passe-bande sur la bande, attaque 4 ms, retour 120 ms, rapport 2:1, genou 6 dB, seuil −60 à 0 dB, plage ±30 dB"],
     ["Moteur", "filtres à variables d'état (calcul en double précision), réglages lissés sans bruit de zipper"],
     ["Analyseur", "FFT 8 192 points, fenêtre Blackman-Harris, pente 4,5 dB/oct, avant / après"],
