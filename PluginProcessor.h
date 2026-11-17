@@ -7,7 +7,7 @@
 #include "ConsoleColour.h"
 
 //==============================================================================
-//  Qmix (NINE HANDS | DSP) : égaliseur paramétrique 24 bandes
+//  QMix (NINE HANDS | DSP) : égaliseur paramétrique 24 bandes
 //  Zero Latency / Analog / Linear Phase, bandes dynamiques
 //==============================================================================
 class QmixProcessor : public juce::AudioProcessor, private juce::Timer

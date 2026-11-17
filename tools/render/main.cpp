@@ -1,4 +1,4 @@
-// Captures de l'interface de Qmix (hors plugin) : tools/render
+// Captures de l'interface de QMix (hors plugin) : tools/render
 #include "PluginEditor.h"
 #include <random>
 using namespace juce;

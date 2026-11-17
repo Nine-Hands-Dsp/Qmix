@@ -914,7 +914,7 @@ void QmixEditor::paint (Graphics& g)
     g.fillRect (Rectangle<float> (162 * s, 14 * s, 1.0f, 18 * s));
     g.setColour (theme().facadeText);
     g.setFont (font (2, 18 * s));
-    g.drawText ("Qmix", Rectangle<float> (174 * s, 12 * s, 70 * s, 22 * s), Justification::centredLeft, false);
+    g.drawText ("QMix", Rectangle<float> (174 * s, 12 * s, 70 * s, 22 * s), Justification::centredLeft, false);
     g.setColour (theme().facadeDim);
     g.setFont (font (1, 8.6f * s).withExtraKerningFactor (0.16f));
     g.drawText ("PARAMETRIC EQ", Rectangle<float> (228 * s, 15 * s, 120 * s, 18 * s), Justification::centredLeft, false);
@@ -1079,14 +1079,14 @@ void QmixEditor::prevNextPreset (int dir)
 
 static File presetFolder()
 {
-    auto f = File::getSpecialLocation (File::userDocumentsDirectory).getChildFile ("Nine Hands DSP").getChildFile ("Qmix");
+    auto f = File::getSpecialLocation (File::userDocumentsDirectory).getChildFile ("Nine Hands DSP").getChildFile ("QMix");
     f.createDirectory();
     return f;
 }
 
 void QmixEditor::savePreset()
 {
-    chooser = std::make_unique<FileChooser> ("Save Qmix preset", presetFolder().getChildFile (proc.presetName + ".qmix"), "*.qmix");
+    chooser = std::make_unique<FileChooser> ("Save QMix preset", presetFolder().getChildFile (proc.presetName + ".qmix"), "*.qmix");
     chooser->launchAsync (FileBrowserComponent::saveMode | FileBrowserComponent::canSelectFiles | FileBrowserComponent::warnAboutOverwriting,
                           [this] (const FileChooser& fc)
     {
@@ -1102,7 +1102,7 @@ void QmixEditor::savePreset()
 
 void QmixEditor::loadPreset()
 {
-    chooser = std::make_unique<FileChooser> ("Load Qmix preset", presetFolder(), "*.qmix");
+    chooser = std::make_unique<FileChooser> ("Load QMix preset", presetFolder(), "*.qmix");
     chooser->launchAsync (FileBrowserComponent::openMode | FileBrowserComponent::canSelectFiles, [this] (const FileChooser& fc)
     {
         const auto f = fc.getResult();
@@ -1261,7 +1261,7 @@ void QmixEditor::showParamMidiMenu (RangedAudioParameter* p, const String& title
 void QmixEditor::showMainMenu()
 {
     PopupMenu m; m.setLookAndFeel (&menuLnf);
-    QmixMenu::addHeader (m, fonts, QmixMenu::icoEq, cAccent, "Qmix", "Parametric EQ  v" + String (JucePlugin_VersionString));
+    QmixMenu::addHeader (m, fonts, QmixMenu::icoEq, cAccent, "QMix", "Parametric EQ  v" + String (JucePlugin_VersionString));
     PopupMenu pres, an, rg, midi, size, gl;
     const auto& fp = QmixProcessor::factoryPresets();
     for (int i = 0; i < (int) fp.size(); ++i) pres.addItem (1 + i, fp[(size_t) i].name, true, proc.currentPreset.load() == i && ! proc.presetDirty.load());

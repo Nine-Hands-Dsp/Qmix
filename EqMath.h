@@ -4,7 +4,7 @@
 #include <algorithm>
 
 //==============================================================================
-//  Qmix : calcul des filtres (partagé par le moteur audio et l'affichage)
+//  QMix : calcul des filtres (partagé par le moteur audio et l'affichage)
 //
 //  Chaque bande est une cascade de sections décrites d'abord en analogique
 //  (fréquence propre fn en Hz, fonction de transfert en s = j f / fn).
@@ -59,7 +59,7 @@ namespace qmix
     //               plateaux plus raides avec léger creux / bosse (undershoot / overshoot) au point de bascule.
     //  Neve VR    : « Q automatically varies with gain on all bands in peaking and shelving modes » (manuel VR
     //               Legend) : cloches ET plateaux s'élargissent aux petits gains, de façon plus douce que la SSL.
-    //  Interprétation de Qmix à partir des documentations (aucune mesure de console fournie).
+    //  Interprétation de QMix à partir des documentations (aucune mesure de console fournie).
     enum AnalogFlavour { flavourClean = 0, flavourSsl, flavourNeve, numFlavours };
     inline const char* flavourName (int f) { static const char* n[numFlavours] = { "Clean", "SSL 4000 G", "Neve VR" }; return n[std::clamp (f, 0, numFlavours - 1)]; }
     inline const char* flavourShort (int f) { static const char* n[numFlavours] = { "ANALOG", "SSL G", "NEVE VR" }; return n[std::clamp (f, 0, numFlavours - 1)]; }

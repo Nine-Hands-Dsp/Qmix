@@ -6,7 +6,7 @@ if(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "" FORCE)
 endif()
 
-project(Qmix VERSION 1.2.0)
+project(QMix VERSION 1.2.1)
 
 include(FetchContent)
 FetchContent_Declare(JUCE
@@ -28,7 +28,7 @@ juce_add_plugin(Qmix
   IS_SYNTH FALSE
   NEEDS_MIDI_INPUT TRUE
   NEEDS_MIDI_OUTPUT FALSE
-  PRODUCT_NAME "Qmix"
+  PRODUCT_NAME "QMix"
   BUNDLE_ID "com.ninehandsdsp.qmix"
   COPY_PLUGIN_AFTER_BUILD FALSE)
 

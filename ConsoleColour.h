@@ -3,9 +3,9 @@
 #include <algorithm>
 
 //==============================================================================
-//  Qmix : couleur de console (mode Analog, caractères SSL 4000 G et Neve VR)
+//  QMix : couleur de console (mode Analog, caractères SSL 4000 G et Neve VR)
 //
-//  Interprétation de Qmix, sans mesure de console réelle :
+//  Interprétation de QMix, sans mesure de console réelle :
 //   - SSL 4000 G : chaîne d'amplis opérationnels NE5532 / 5534 et VCA de sortie ; la distorsion d'un VCA
 //     se limite surtout aux harmoniques 2 et 3, presque uniquement la 2 d'après les mesures publiées.
 //     -> saturation douce asymétrique (H2 dominante, H3 en plus quand on pousse), identique à toutes les fréquences.

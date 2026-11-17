@@ -19,5 +19,5 @@ jobs:
           [ -n "$N" ] || { echo "pas de notice"; exit 0; }
           TAG=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
           [ -n "$TAG" ] || { echo "pas encore de Release"; exit 0; }
-          cp "$N" Qmix-Notice.pdf
-          gh release upload "$TAG" Qmix-Notice.pdf --clobber
+          cp "$N" QMix-Notice.pdf
+          gh release upload "$TAG" QMix-Notice.pdf --clobber

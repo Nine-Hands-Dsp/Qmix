@@ -15,7 +15,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = sys.argv[1]
 OUT = sys.argv[2]
-VERSION = re.search(r"project\(Qmix VERSION ([0-9.]+)\)", open(os.path.join(ROOT, "CMakeLists.txt")).read()).group(1)
+VERSION = re.search(r"project\(QMix VERSION ([0-9.]+)\)", open(os.path.join(ROOT, "CMakeLists.txt")).read()).group(1)
 TMP = os.path.join(os.path.dirname(os.path.abspath(OUT)), "notice_tmp")
 os.makedirs(TMP, exist_ok=True)
 
@@ -24,7 +24,7 @@ for n, f, d in (("Pop", "Poppins-Regular", FONTS), ("PopL", "Poppins-Light", FON
                 ("Title", "BarlowCondensed-ExtraBold", FONTS2)):
     pdfmetrics.registerFont(TTFont(n, os.path.join(d, f + ".ttf")))
 
-ACC = colors.HexColor("#1E9BD0"); ACC_L = colors.HexColor("#4FC3F7")        # bleu d'accent de Qmix (thème Graphite)
+ACC = colors.HexColor("#1E9BD0"); ACC_L = colors.HexColor("#4FC3F7")        # bleu d'accent de QMix (thème Graphite)
 DARK = colors.HexColor("#1A1C22"); GREY = colors.HexColor("#646B76"); LIGHT = colors.HexColor("#EAF4FA")
 LOGO_PNG = os.path.join(TMP, "nine_hands_logo_blanc.png")
 subprocess.run(["rsvg-convert", "-w", "1200", os.path.join(ROOT, "logo", "NineHandsLogoWhite.svg"), "-o", LOGO_PNG], check=True)
@@ -113,9 +113,9 @@ f = [NextPageTemplate("p"), Spacer(1, 1), PageBreak()]
 
 # ---------- 1. Présentation ----------
 f.append(P("1. Présentation", "h1"))
-f += [P("<b>Qmix</b> est un égaliseur paramétrique de mixage : jusqu'à <b>24 bandes</b> que l'on règle directement sur la courbe, un analyseur de spectre en temps réel, des <b>bandes dynamiques</b> et <b>trois modes de traitement</b> au choix selon ce que l'on attend de la phase et de la latence."),
-      P("Le moteur a été écrit entièrement pour Qmix (il ne reprend pas le code de ReaEQ). Chaque bande est d'abord décrite comme un vrai filtre analogique, puis transposée en numérique selon le mode choisi. La courbe affichée n'est pas une approximation : elle est calculée avec exactement les mêmes filtres que le son, et l'écart mesuré entre les deux est de l'ordre du millième de dB.")]
-f.append(P("Ce que Qmix sait faire", "h2"))
+f += [P("<b>QMix</b> est un égaliseur paramétrique de mixage : jusqu'à <b>24 bandes</b> que l'on règle directement sur la courbe, un analyseur de spectre en temps réel, des <b>bandes dynamiques</b> et <b>trois modes de traitement</b> au choix selon ce que l'on attend de la phase et de la latence."),
+      P("Le moteur a été écrit entièrement pour QMix (il ne reprend pas le code de ReaEQ). Chaque bande est d'abord décrite comme un vrai filtre analogique, puis transposée en numérique selon le mode choisi. La courbe affichée n'est pas une approximation : elle est calculée avec exactement les mêmes filtres que le son, et l'écart mesuré entre les deux est de l'ordre du millième de dB.")]
+f.append(P("Ce que QMix sait faire", "h2"))
 f += bullets(["24 bandes : cloche, plateau bas, plateau haut, coupe-bas, coupe-haut (6 à 96 dB/oct, résonance réglable), notch, passe-bande, tilt.",
               "Chaque bande agit en stéréo, sur la gauche, la droite, le Mid ou le Side.",
               "Modes <b>Zero Latency</b>, <b>Analog</b> (avec le caractère des consoles <b>SSL 4000 G</b> ou <b>Neve VR</b> au choix) et <b>Linear Phase</b> (section 6).",
@@ -125,11 +125,11 @@ f += bullets(["24 bandes : cloche, plateau bas, plateau haut, coupe-bas, coupe-h
 # ---------- 2. Installation ----------
 f.append(P("2. Installation", "h1"))
 f.append(P("Windows", "h2"))
-f.append(P("Téléchargez <b>Qmix-VST3-Windows.zip</b>, décompressez-le et copiez le dossier <b>Qmix.vst3</b> dans <b>C:\\Program Files\\Common Files\\VST3</b>."))
+f.append(P("Téléchargez <b>QMix-VST3-Windows.zip</b>, décompressez-le et copiez le dossier <b>QMix.vst3</b> dans <b>C:\\Program Files\\Common Files\\VST3</b>."))
 f.append(P("macOS", "h2"))
-f.append(P("Téléchargez <b>Qmix-VST3-macOS.zip</b>, décompressez-le et copiez <b>Qmix.vst3</b> dans <b>~/Library/Audio/Plug-Ins/VST3</b> (binaire universel Apple Silicon et Intel). Le plugin est signé ad hoc : au premier lancement, autorisez-le si besoin dans Réglages Système &gt; Confidentialité et sécurité."))
+f.append(P("Téléchargez <b>QMix-VST3-macOS.zip</b>, décompressez-le et copiez <b>QMix.vst3</b> dans <b>~/Library/Audio/Plug-Ins/VST3</b> (binaire universel Apple Silicon et Intel). Le plugin est signé ad hoc : au premier lancement, autorisez-le si besoin dans Réglages Système &gt; Confidentialité et sécurité."))
 f.append(P("Dans Reaper", "h2"))
-f.append(P("Options &gt; Preferences &gt; Plug-ins &gt; VST : <b>Re-scan</b>. Qmix apparaît sous le nom <b>Qmix (NINE HANDS | DSP)</b>. Il accepte une piste mono ou stéréo."))
+f.append(P("Options &gt; Preferences &gt; Plug-ins &gt; VST : <b>Re-scan</b>. QMix apparaît sous le nom <b>QMix (NINE HANDS | DSP)</b>. Il accepte une piste mono ou stéréo."))
 f.append(PageBreak())
 
 # ---------- 3. Vue d'ensemble ----------
@@ -188,7 +188,7 @@ f.append(img(modes, 70 * mm)); f.append(Spacer(1, 2 * mm))
 f.append(P("Zero Latency", "h2"))
 f.append(P("Filtres numériques classiques (transformée bilinéaire, comme ReaEQ ou la plupart des égaliseurs « zéro latence »). Aucune latence, très léger pour le processeur. Contrepartie : près de la limite de l'audio numérique (la moitié de la fréquence d'échantillonnage), les cloches et plateaux aigus se resserrent. À 44,1 kHz, une cloche de +12 dB réglée à 15 kHz ne monte plus qu'à +3,8 dB à 17 kHz, au lieu des +9,2 dB du filtre analogique."))
 f.append(P("Analog (mode par défaut)", "h2"))
-f.append(P("Aucune latence, mais chaque section de filtre est <b>appariée au filtre analogique d'origine</b> : ses pôles sont transposés exactement, et ses zéros sont calculés pour retrouver la réponse analogique jusqu'à 20 kHz. Pour chaque section, Qmix compare plusieurs façons de faire et garde celle qui colle le mieux. Résultat : la même cloche à 15 kHz monte à +8,8 dB à 17 kHz (+9,2 dB en analogique). Sur les réglages courants, l'écart avec l'analogique est inférieur à 0,1 dB ; il reste sous 2 dB dans les cas extrêmes au-dessus de 15 kHz (pente de 96 dB/oct, cloche très étroite). La phase est celle d'un égaliseur analogique."))
+f.append(P("Aucune latence, mais chaque section de filtre est <b>appariée au filtre analogique d'origine</b> : ses pôles sont transposés exactement, et ses zéros sont calculés pour retrouver la réponse analogique jusqu'à 20 kHz. Pour chaque section, QMix compare plusieurs façons de faire et garde celle qui colle le mieux. Résultat : la même cloche à 15 kHz monte à +8,8 dB à 17 kHz (+9,2 dB en analogique). Sur les réglages courants, l'écart avec l'analogique est inférieur à 0,1 dB ; il reste sous 2 dB dans les cas extrêmes au-dessus de 15 kHz (pente de 96 dB/oct, cloche très étroite). La phase est celle d'un égaliseur analogique."))
 f.append(P("Caractère du mode Analog : Clean, SSL G, Neve VR", "h2"))
 f.append(P("En mode Analog, un nouveau clic sur le bouton (ou un clic droit, ou clic droit &gt; <b>Analog character</b>) choisit la façon dont les bandes réagissent au gain. Le nom du bouton suit le choix : <b>ANALOG</b>, <b>SSL G</b> ou <b>NEVE VR</b>. Le choix est enregistré avec le projet et avec les presets."))
 f.append(table([["Caractère", "Cloches", "Plateaux"],
@@ -196,15 +196,15 @@ f.append(table([["Caractère", "Cloches", "Plateaux"],
                 ["SSL 4000 G", "Égaliseur « 292 Pink Knob » de la SSL 4000 G : Q proportionnel. Les petites corrections sont larges, la courbe se resserre en poussant ; le Q affiché est atteint vers ±18 dB (où, d'après les utilisateurs, les courbes E et G se rejoignent). Avec Q = 1 : 2,4 octaves à 3 dB, 1,8 à 9 dB, 1,4 à 18 dB.", "Plus raides, avec le léger creux (undershoot) avant une accentuation et la bosse (overshoot) avant une coupe, typiques de la G : environ −1,3 dB pour un plateau bas de +12 dB."],
                 ["Neve VR", "Console Neve VR Legend : le manuel indique que « le Q varie automatiquement avec le gain sur toutes les bandes, en cloche comme en plateau » (plus de gain, plus de Q). Loi plus douce que la SSL : 2,1 octaves à 3 dB, 1,7 à 9 dB, 1,4 à 18 dB (Q = 1).", "S'élargissent aussi aux petits gains : plateaux très progressifs et doux, qui retrouvent le Q réglé vers ±18 dB. Q = 2 donne le plateau résonant du bouton HI-Q de la console."]],
                [24 * mm, (W - 24 * mm) * 0.58, (W - 24 * mm) * 0.42]))
-f.append(P("Ces caractères reproduisent la façon dont les deux consoles réagissent (largeur selon le gain, forme des plateaux), d'après les documentations des constructeurs et des émulations reconnues ; ce ne sont pas des mesures de consoles réelles. Ils changent les courbes ; la saturation est réglée à part avec COLOR (ci-dessous). Coupe-bas, coupe-haut, notch, passe-bande et tilt ne changent pas. Les plages de fréquences et de gain restent celles de Qmix (les consoles vont de ±18 à ±20 dB environ, de 30 Hz à 17 kHz).", "small"))
+f.append(P("Ces caractères reproduisent la façon dont les deux consoles réagissent (largeur selon le gain, forme des plateaux), d'après les documentations des constructeurs et des émulations reconnues ; ce ne sont pas des mesures de consoles réelles. Ils changent les courbes ; la saturation est réglée à part avec COLOR (ci-dessous). Coupe-bas, coupe-haut, notch, passe-bande et tilt ne changent pas. Les plages de fréquences et de gain restent celles de QMix (les consoles vont de ±18 à ±20 dB environ, de 30 Hz à 17 kHz).", "small"))
 f.append(KeepTogether([img(flav, W * 0.92), P("Même réglage (plateau bas +8 dB à 90 Hz, −4 dB à 400 Hz, +4 dB à 3 kHz) en Clean, SSL G et Neve VR.", "small")]))
 f.append(P("Couleur de console (COLOR)", "h2"))
 f.append(P("En <b>SSL G</b> et <b>NEVE VR</b>, le potard <b>COLOR</b> (en bas de la fenêtre) ajoute la saturation légère du trajet audio de la console, après l'égalisation. 0 % : aucune couleur. 50 % (par défaut) : couleur discrète, à peu près celle d'une console à son niveau nominal. 100 % : console poussée. La couleur dépend du niveau : plus le signal est fort, plus elle s'entend. Le potard est grisé en Clean, Zero Latency et Linear Phase, où il n'agit pas."))
-f.append(table([["Console", "Ce qui donne la couleur", "Ce que fait Qmix"],
+f.append(table([["Console", "Ce qui donne la couleur", "Ce que fait QMix"],
                 ["SSL 4000 G", "Une chaîne d'amplificateurs opérationnels NE5532 / 5534 et le VCA de sortie ; la distorsion d'un VCA se limite surtout aux harmoniques 2 et 3, presque uniquement la 2.", "Saturation douce asymétrique : harmonique 2 dominante, harmonique 3 quand on pousse ; identique sur tout le spectre. À 50 % et −18 dBFS : H2 ≈ −60 dB ; à 100 % et −6 dBFS : H2 ≈ −28 dB, H3 ≈ −40 dB."],
                 ["Neve VR", "Entrée et sorties à transformateur, nombreux condensateurs de liaison ; la couleur Neve est attribuée aux transformateurs, qui saturent davantage dans le grave.", "Saturation plus ronde et presque symétrique, renforcée sous 150 Hz : dans le grave, l'harmonique 3 domine. À 50 % et −18 dBFS : H2 ≈ −66 dB à 1 kHz ; à 60 Hz et −12 dBFS : H3 ≈ −56 dB."]],
                [24 * mm, (W - 24 * mm) * 0.48, (W - 24 * mm) * 0.52]))
-f.append(P("Interprétation de Qmix à partir des descriptions des circuits, pas une mesure de console réelle. Aucune latence ajoutée : l'anti-repliement est fait sans suréchantillonnage (méthode ADAA). Pas de souffle ajouté. Comme toute saturation, la couleur rend la réponse dépendante du niveau : pour une correction strictement linéaire, mettez COLOR à 0 % ou choisissez Clean.", "small"))
+f.append(P("Interprétation de QMix à partir des descriptions des circuits, pas une mesure de console réelle. Aucune latence ajoutée : l'anti-repliement est fait sans suréchantillonnage (méthode ADAA). Pas de souffle ajouté. Comme toute saturation, la couleur rend la réponse dépendante du niveau : pour une correction strictement linéaire, mettez COLOR à 0 % ou choisissez Clean.", "small"))
 f.append(P("Linear Phase", "h2"))
 f.append(P("L'égaliseur devient un filtre à réponse impulsionnelle finie symétrique, calculé à partir de la réponse analogique exacte de toutes les bandes : <b>aucune rotation de phase</b>, quel que soit le réglage. Utile sur un bus, un mix ou des pistes enregistrées à plusieurs micros, quand on veut corriger sans déplacer les transitoires. Les bandes Mid / Side sont prises en compte exactement (matrice de quatre filtres)."))
 f += bullets(["Il y a une <b>latence</b>, annoncée au DAW qui la compense : <b>Low</b> 2 048 échantillons (42,7 ms à 48 kHz), <b>Medium</b> 4 096 (85,3 ms, par défaut), <b>High</b> 8 192 (170,7 ms). Plus la qualité est haute, plus les coupe-bas raides et les cloches très étroites dans le grave sont précis.",
@@ -250,7 +250,7 @@ f.append(wt)
 
 # ---------- 12. Presets ----------
 f.append(P("11. Presets", "h1"))
-f.append(P("Flèches de la barre de presets, clic sur son nom, clic droit &gt; Presets, ou menu de presets du DAW. Un astérisque après le nom signale un preset modifié. <b>Save preset...</b> et <b>Load preset...</b> enregistrent et rechargent vos réglages (fichiers .qmix, dossier Documents/Nine Hands DSP/Qmix par défaut) ; le mode de traitement est enregistré avec le preset."))
+f.append(P("Flèches de la barre de presets, clic sur son nom, clic droit &gt; Presets, ou menu de presets du DAW. Un astérisque après le nom signale un preset modifié. <b>Save preset...</b> et <b>Load preset...</b> enregistrent et rechargent vos réglages (fichiers .qmix, dossier Documents/Nine Hands DSP/QMix par défaut) ; le mode de traitement est enregistré avec le preset."))
 f.append(table([["Preset", "Contenu"],
                 ["Flat", "Aucune bande."],
                 ["Vocal Presence", "Coupe-bas 90 Hz, −2,5 dB à 250 Hz, +2,5 dB à 3,2 kHz, plateau haut +2 dB à 11 kHz."],
@@ -266,7 +266,7 @@ f.append(table([["Preset", "Contenu"],
 
 # ---------- 13. Conseils ----------
 f.append(P("12. Conseils d'utilisation", "h1"))
-f += bullets(["Pour une guitare, placez Qmix <b>après</b> Ampire et Impulse pour sculpter le son d'ampli (preset Guitar Cab Tamer), ou <b>avant</b> l'ampli pour préparer le signal (coupe-bas, bosse dans les médiums).",
+f += bullets(["Pour une guitare, placez QMix <b>après</b> Ampire et Impulse pour sculpter le son d'ampli (preset Guitar Cab Tamer), ou <b>avant</b> l'ampli pour préparer le signal (coupe-bas, bosse dans les médiums).",
               "Avec une 7 cordes en Sol ou plus bas, réglez le coupe-bas autour de 40 à 60 Hz plutôt que 80 Hz, pour garder la fondamentale de la corde grave.",
               "Pour une résonance qui ne sort que sur certaines notes, préférez une cloche dynamique (RANGE négatif) à une cloche fixe : le reste du temps, le son n'est pas touché.",
               "Mode Analog pour le suivi et les prises (aucune latence), Linear Phase pour un bus ou un mix quand la phase compte.",
@@ -291,7 +291,7 @@ def deco(c, doc):
     c.setFillColor(DARK); c.rect(0, A4[1] - 6 * mm, A4[0], 6 * mm, stroke=0, fill=1)
     c.setFillColor(ACC); c.rect(0, A4[1] - 6.8 * mm, A4[0], 0.8 * mm, stroke=0, fill=1)
     c.setFont("Pop", 7.5); c.setFillColor(GREY)
-    c.drawString(18 * mm, 10 * mm, "Qmix (NINE HANDS | DSP) · v" + VERSION)
+    c.drawString(18 * mm, 10 * mm, "QMix (NINE HANDS | DSP) · v" + VERSION)
     c.drawRightString(A4[0] - 18 * mm, 10 * mm, str(doc.page))
     c.restoreState()
 
