@@ -164,7 +164,7 @@ int main()
         }
     }
 
-    // 5. captures (Graphite)
+    // 5. captures (notice, README de contrôle)
     p.phaseMode = qmix::analog; p.prepareToPlay (48000.0, 512);
     p.loadFactoryPreset (1);
     p.createBand (6200.0f, 0.0f, qmix::bell);
@@ -173,16 +173,14 @@ int main()
     {
         std::unique_ptr<QmixEditor> ed (dynamic_cast<QmixEditor*> (p.createEditor()));
         ed->setSize (960, 540);
-        ed->selectBand (4);
-        runAudio (p, ed.get(), 90);
-        ed->statusTime = -10; ed->statusAlpha = 0;
-        ed->display.hover = 4;
-        snap (*ed, "qmix_dyn.png", 2.0f);
-        p.phaseMode = qmix::linearPhase;
         ed->selectBand (2);
-        runAudio (p, ed.get(), 20);
-        ed->statusTime = -10; ed->statusAlpha = 0; ed->display.hover = -1;
-        snap (*ed, "qmix_linear.png", 2.0f);
+        runAudio (p, ed.get(), 90);
+        auto quiet = [&] { ed->statusTime = -10; ed->statusAlpha = 0; ed->display.hover = -1; };
+        quiet(); snap (*ed, "qmix_overview.png", 2.0f);
+        ed->showStatus (ed->bandSummary (2)); ed->statusAlpha = 1.0f; snap (*ed, "qmix_status.png", 2.0f);
+        ed->selectBand (4); runAudio (p, ed.get(), 30); quiet(); ed->display.hover = 4; snap (*ed, "qmix_dyn.png", 2.0f);
+        p.phaseMode = qmix::linearPhase; ed->selectBand (-1); runAudio (p, ed.get(), 30); quiet(); snap (*ed, "qmix_linear.png", 2.0f);
+        p.phaseMode = qmix::zeroLatency; p.loadFactoryPreset (0); runAudio (p, ed.get(), 10); quiet(); snap (*ed, "qmix_empty.png", 2.0f);
     }
     return 0;
 }
