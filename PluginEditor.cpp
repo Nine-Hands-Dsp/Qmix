@@ -117,6 +117,9 @@ void Knob::touchPill() { lastActive = Time::getMillisecondCounterHiRes() * 0.001
 float Knob::pillAlpha() const
 {
     // visible pendant le réglage, puis s'efface en fondu ; revient au clic ou dès que la valeur bouge
+   #ifdef NHRACK_SHOW_PILLS
+    return 1.0f;                 // outil de captures : pastilles toujours visibles
+   #endif
     const double idle = Time::getMillisecondCounterHiRes() * 0.001 - lastActive;
     return (float) jlimit (0.0, 1.0, 1.0 - (idle - 2.5) / 0.35);
 }
@@ -163,7 +166,7 @@ Rectangle<float> Knob::labelBox() const
 float Knob::pillFont() const
 {
     const float s = ed.sc();
-    return jlimit (valueFont, 10.5f, ringRadius() / s * 0.19f) * s;
+    return jlimit (valueFont, valueFont * 1.35f, ringRadius() / s * 0.19f) * s;
 }
 
 nhrack::PillOverlay::Pill Knob::pill() const

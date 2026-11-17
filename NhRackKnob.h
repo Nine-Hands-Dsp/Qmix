@@ -62,7 +62,7 @@ namespace nhrack
     inline void paintKnob (Graphics& g, const Look& k)
     {
         const float s = k.s, al = k.alpha, a = k.angle;
-        const float ringW = jmax (2.0f * s, k.ring * 0.075f);
+        const float ringW = jlimit (2.0f * s, 4.2f * s, k.ring * 0.075f);
         // anneau : piste sombre puis valeur lumineuse (halo dosé par Glow) et point blanc au bout
         {
             Path track; track.addCentredArc (k.c.x, k.c.y, k.ring, k.ring, 0.0f, k.a0, k.a1, true);
@@ -79,7 +79,7 @@ namespace nhrack
                 g.strokePath (v, PathStrokeType (ringW, PathStrokeType::curved, PathStrokeType::rounded));
             }
             const auto e = polar (k.c, a, k.ring);
-            const float dr = ringW * 0.95f;
+            const float dr = jmin (ringW * 0.95f, 3.2f * s);
             g.setColour (k.colour.withAlpha (0.35f * k.glow * al)); g.fillEllipse (Rectangle<float> (dr * 3.2f, dr * 3.2f).withCentre (e));
             g.setColour (Colours::white.withAlpha (al)); g.fillEllipse (Rectangle<float> (dr * 1.8f, dr * 1.8f).withCentre (e));
         }
