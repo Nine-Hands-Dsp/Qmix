@@ -6,7 +6,7 @@ if(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "" FORCE)
 endif()
 
-project(QMix VERSION 1.2.3)
+project(QMix VERSION 1.2.4)
 
 include(FetchContent)
 FetchContent_Declare(JUCE

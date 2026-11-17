@@ -51,6 +51,8 @@ namespace QmixUi
         String valueText() const;
         Rectangle<float> labelBox() const;
         float pillFont() const;
+        float pillAlpha() const;
+        void touchPill();
         nhrack::PillOverlay::Pill pill() const;
         float valueFont = 7.8f, ringScale = 1.0f;   // ringScale < 1 : potards serrés, laisse de la place à la pastille
         RangedAudioParameter* param = nullptr;
@@ -64,6 +66,8 @@ namespace QmixUi
         float norm = 0.0f, dragStart = 0.0f, shownAngle = 0.0f, prevAngle = 0.0f, blur = 0.0f, blurDir = 1.0f;
         Image face;               // face d'alu anodisé précalculée (timer)
         int facePx = 0;
+        double lastActive = -100.0;   // dernière action (clic, molette, valeur qui bouge)
+        float lastNorm = -1.0f;
         bool dragging = false;
         float angleOf (float v) const;
     };

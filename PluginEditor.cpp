@@ -112,8 +112,18 @@ String Knob::valueText() const
     return format ? format (param->convertFrom0to1 (norm)) : param->getCurrentValueAsText();
 }
 
+void Knob::touchPill() { lastActive = Time::getMillisecondCounterHiRes() * 0.001; }
+
+float Knob::pillAlpha() const
+{
+    // visible pendant le réglage, puis s'efface en fondu ; revient au clic ou dès que la valeur bouge
+    const double idle = Time::getMillisecondCounterHiRes() * 0.001 - lastActive;
+    return (float) jlimit (0.0, 1.0, 1.0 - (idle - 2.5) / 0.35);
+}
+
 void Knob::tick()
 {
+    if (std::abs (norm - lastNorm) > 1.0e-6f) { if (lastNorm >= 0.0f) touchPill(); lastNorm = norm; }
     shownAngle = angleOf (norm);
     const float step = MathConstants<float>::twoPi / 40.0f;
     const float t = std::abs (shownAngle - prevAngle) / step;
@@ -172,13 +182,14 @@ nhrack::PillOverlay::Pill Knob::pill() const
     }
     p.c = centre(); p.ring = ringRadius(); p.angle = angleOf (norm); p.gap = 3.5f * s;
     p.colour = colour;
-    p.alpha = (enabledLook) ? 1.0f : 0.35f;
-    p.visible = isEnabled() || true;
+    p.alpha = pillAlpha() * (((enabledLook)) ? 1.0f : 0.35f);
+    p.visible = p.alpha > 0.001f;
     return p;
 }
 
 void Knob::mouseDown (const MouseEvent& e)
 {
+    touchPill();
     if (param == nullptr) return;
     if (e.mods.isPopupMenu()) { ed.showParamMidiMenu (param, param->getName (64)); return; }
     dragging = true; dragStart = norm;
@@ -196,6 +207,7 @@ void Knob::mouseDrag (const MouseEvent& e)
 
 void Knob::mouseUp (const MouseEvent& e)
 {
+    touchPill();
     if (! dragging) return;
     dragging = false;
     att->endGesture();
@@ -204,12 +216,14 @@ void Knob::mouseUp (const MouseEvent& e)
 
 void Knob::mouseDoubleClick (const MouseEvent&)
 {
+    touchPill();
     if (param == nullptr) return;
     att->setValueAsCompleteGesture (param->convertFrom0to1 (param->getDefaultValue()));
 }
 
 void Knob::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& w)
 {
+    touchPill();
     if (param == nullptr) return;
     const float step = (e.mods.isShiftDown() ? 0.01f : 0.05f) * (w.deltaY >= 0 ? 1.0f : -1.0f) * jmin (1.0f, std::abs (w.deltaY) * 4.0f);
     att->setValueAsCompleteGesture (param->convertFrom0to1 (jlimit (0.0f, 1.0f, norm + step)));
