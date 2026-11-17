@@ -1,0 +1,52 @@
+# Qmix — NINE HANDS | DSP
+
+Égaliseur paramétrique VST3 (Windows et macOS) : 24 bandes, courbe interactive et analyseur de spectre en temps réel, trois modes de traitement (Zero Latency, Analog sans resserrement dans l'aigu, Linear Phase) et bandes dynamiques.
+
+<p align="center">
+  <a href="https://github.com/Nine-Hands-Dsp/Qmix/releases/latest/download/Qmix-VST3-Windows.zip"><img alt="Télécharger pour Windows" src="https://img.shields.io/badge/%E2%AC%87%20T%C3%A9l%C3%A9charger-Windows-0078D6?style=for-the-badge"></a>
+  <a href="https://github.com/Nine-Hands-Dsp/Qmix/releases/latest/download/Qmix-VST3-macOS.zip"><img alt="Télécharger pour macOS" src="https://img.shields.io/badge/%E2%AC%87%20T%C3%A9l%C3%A9charger-macOS-111111?style=for-the-badge&logo=apple&logoColor=white"></a>
+  <br>
+  <a href="https://github.com/Nine-Hands-Dsp/Qmix/releases/latest/download/Qmix-Notice.pdf"><img alt="Télécharger la notice (PDF)" src="https://img.shields.io/badge/%F0%9F%93%96%20Notice-PDF-919496?style=for-the-badge"></a>
+  <br>
+  <a href="https://github.com/Nine-Hands-Dsp/Qmix/releases/latest"><img alt="Dernière version" src="https://img.shields.io/github/v/release/Nine-Hands-Dsp/Qmix?label=derni%C3%A8re%20version&color=4fc3f7"></a>
+</p>
+
+## Fonctions
+
+- **24 bandes** : cloche, plateau bas, plateau haut, coupe-bas et coupe-haut de 6 à 96 dB/oct (résonance réglable), notch, passe-bande, tilt.
+- **Placement stéréo par bande** : stéréo, gauche, droite, Mid ou Side.
+- **Trois modes de traitement** :
+  - *Zero Latency* : filtres classiques (transformée bilinéaire, comme ReaEQ), aucune latence ;
+  - *Analog* : chaque section est appariée au filtre analogique d'origine ; les cloches et plateaux aigus gardent leur forme jusqu'à 20 kHz, aucune latence ;
+  - *Linear Phase* : filtres RIF symétriques calculés sur la réponse analogique exacte, aucune rotation de phase ; latence de 42,7 / 85,3 / 170,7 ms à 48 kHz (qualité Low / Medium / High).
+- **Bandes dynamiques** (cloche, plateaux, tilt) : seuil et plage réglables ; la bande bouge de 2 dB par dB au-dessus du seuil (genou doux), jusqu'à la plage choisie, en atténuation ou en accentuation.
+- **Courbe interactive** : double-clic pour créer une bande, glisser pour la fréquence et le gain (Maj : réglage fin), molette pour le Q, double-clic sur un point pour couper la bande, clic droit pour son menu.
+- **Analyseur** avant et après l'EQ (pente 4,5 dB/oct), échelle d'affichage ±6 / 12 / 24 / 30 dB, Gain Scale de 0 à 200 %.
+- Presets d'usine, sauvegarde et chargement de vos presets (`Documents/Nine Hands DSP/Qmix`).
+- MIDI Learn sur tous les réglages (aucun CC par défaut), fenêtre redimensionnable de 60 à 150 %, réglage Glow.
+
+## Installation
+
+Les boutons ci-dessus téléchargent toujours la dernière version.
+
+- **Windows** : décompresser et copier `Qmix.vst3` dans `C:\Program Files\Common Files\VST3`.
+- **macOS** : décompresser et copier `Qmix.vst3` dans `~/Library/Audio/Plug-Ins/VST3` (le plugin est signé ad hoc ; au premier lancement, autoriser si besoin dans Réglages Système > Confidentialité et sécurité).
+
+Dans Reaper, le plugin apparaît sous le nom **Qmix (NINE HANDS | DSP)**.
+
+## Compilation
+
+JUCE 8.0.15 (récupéré par CMake) :
+
+```
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+```
+
+`tools/render` compile l'interface sous Linux et exporte des captures, et vérifie au passage que la réponse mesurée du moteur audio est identique à la courbe affichée (mode Analog, phase linéaire, bandes dynamiques).
+
+## Historique
+
+| Version | Changements |
+|---|---|
+| 1.0.0 | Première version : 24 bandes, modes Zero Latency / Analog / Linear Phase, bandes dynamiques, analyseur, presets, MIDI Learn, anti-gel v2. |

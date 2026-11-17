@@ -1,0 +1,23 @@
+name: Notice (Release)
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'docs/**.pdf', '.github/workflows/notice.yml' ]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  notice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publier la dernière notice dans la dernière Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          N=$(ls docs/*.pdf 2>/dev/null | grep -vi midi | sort -V | tail -1 || true)
+          [ -n "$N" ] || { echo "pas de notice"; exit 0; }
+          TAG=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
+          [ -n "$TAG" ] || { echo "pas encore de Release"; exit 0; }
+          cp "$N" Qmix-Notice.pdf
+          gh release upload "$TAG" Qmix-Notice.pdf --clobber
