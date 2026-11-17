@@ -243,7 +243,7 @@ f += bullets(["Tous les réglages sont automatisables dans le DAW (Band n Freque
 # ---------- 11. Fenêtre ----------
 f.append(P("10. Fenêtre et ligne d'état", "h1"))
 wt = Table([[[P("La fenêtre s'ouvre à la taille par défaut (<b>60 %</b>) et ne peut pas être réduite en dessous. Clic droit &gt; <b>Plugin size</b> : 60 %, 75 % ou 100 % (taille enregistrée avec le projet) ; le coin en bas à droite agrandit jusqu'à 150 % en gardant les proportions. Clic droit &gt; <b>Glow intensity</b> : 25, 50, 75 ou 100 % pour l'intensité des halos (courbe, points, potards, Power)."),
-              P("La <b>barre de presets</b> et la <b>ligne d'état</b> partagent la même pastille. Dès qu'un réglage bouge (souris, molette, automation, MIDI), la ligne d'état prend sa place avec les valeurs de la bande en direct ; elle s'efface 2,5 s après le dernier mouvement. Un clic sur la pastille fait revenir la barre de presets tout de suite.")],
+              P("La <b>barre de presets</b> et la <b>ligne d'état</b> partagent la même pastille. Dès qu'un réglage bouge (souris, molette, automation, MIDI), la ligne d'état prend sa place avec les valeurs de la bande en direct ; elle s'efface 2,5 s après le dernier mouvement. Un clic sur la pastille fait revenir la barre de presets tout de suite. Chaque potard affiche aussi sa valeur dans une pastille au bout de son anneau lumineux : elle apparaît dès qu'on clique sur le potard ou qu'il tourne (souris, molette, automation, MIDI), puis s'efface en fondu 2,5 s après.")],
              [img(bars, 66 * mm), P("Au repos (barre de presets) et pendant un réglage (ligne d'état).", "small")]]], colWidths=[W - 70 * mm, 70 * mm])
 wt.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (0, 0), 0)]))
 f.append(wt)
