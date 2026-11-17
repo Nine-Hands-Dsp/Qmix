@@ -91,6 +91,87 @@ int main()
             std::cout << "  cloche 15k +12 Q2 @44.1k, " << f << " Hz : analogique " << qmix::analogDb (an, f) << "  bilineaire " << qmix::responseDb (bi, f, 44100.0) << "  Analog " << qmix::responseDb (ma, f, 44100.0) << "\n";
     }
 
+    // 0. banc d'essai CPU (48 kHz, blocs de 512, stéréo, 10 s de bruit)
+    {
+        auto bench = [] (const char* name, std::function<void (QmixProcessor&)> setup)
+        {
+            QmixProcessor q; q.setPlayConfigDetails (2, 2, 48000.0, 512); q.prepareToPlay (48000.0, 512);
+            setup (q);
+            AudioBuffer<float> b (2, 512); MidiBuffer m; Random r (3);
+            for (int k = 0; k < 100; ++k) { for (int c = 0; c < 2; ++c) for (int i = 0; i < 512; ++i) b.setSample (c, i, r.nextFloat() * 0.5f - 0.25f); q.processBlock (b, m); }
+            Thread::sleep (400);
+            const int blocks = 48000 * 10 / 512;
+            const double t0 = Time::getMillisecondCounterHiRes();
+            for (int k = 0; k < blocks; ++k)
+            {
+                for (int c = 0; c < 2; ++c) for (int i = 0; i < 512; ++i) b.setSample (c, i, r.nextFloat() * 0.5f - 0.25f);
+                if (k % 8 == 0) if (auto* pf = q.apvts.getParameter ("b3_freq")) pf->setValueNotifyingHost (0.3f + 0.4f * (float) ((k / 8) % 2));   // automation
+                q.processBlock (b, m);
+            }
+            const double ms = Time::getMillisecondCounterHiRes() - t0;
+            std::cout << "BENCH " << name << " : " << ms / 100.0 << " % d'un coeur (10 s d'audio en " << ms << " ms)\n";
+        };
+        auto bells = [] (QmixProcessor& q, int mode, int fl, bool dyn)
+        {
+            q.phaseMode = mode; q.analogFlavour = fl;
+            for (int b = 0; b < 24; ++b) { const int i = q.createBand (40.0f * std::pow (1.3f, (float) b), (b % 2 ? 3.0f : -3.0f), qmix::bell);
+                                           if (dyn) { q.setBandParam (i, "dyn", 1.0f); q.setBandParam (i, "thresh", -40.0f); } }
+        };
+        bench ("24 cloches Zero Latency", [&] (QmixProcessor& q) { bells (q, 0, 0, false); });
+        bench ("24 cloches Analog Clean", [&] (QmixProcessor& q) { bells (q, 1, 0, false); });
+        bench ("24 cloches Analog SSL + COLOR", [&] (QmixProcessor& q) { bells (q, 1, 1, false); });
+        bench ("24 cloches dynamiques Analog", [&] (QmixProcessor& q) { bells (q, 1, 0, true); });
+        bench ("4 coupes 96 dB/oct + 20 cloches M/S Analog", [&] (QmixProcessor& q) { bells (q, 1, 0, false); for (int b = 0; b < 4; ++b) { q.setBandParam (b, "type", (float) qmix::lowCut); q.setBandParam (b, "slope", 8.0f); }
+                                                                                    for (int b = 4; b < 24; ++b) q.setBandParam (b, "place", (float) (b % 2 ? qmix::mid : qmix::side)); });
+        bench ("24 cloches Linear Phase Medium", [&] (QmixProcessor& q) { bells (q, 2, 0, false); });
+    }
+
+    // 0 ter. sauts de réglages extrêmes : crête mesurée / gain théorique
+    for (int noRamp = 0; noRamp < 1; ++noRamp)
+        for (int mode : { 0, 1 })
+            for (int type : { (int) qmix::bell, (int) qmix::lowCut, (int) qmix::highShelf, (int) qmix::notch })
+            {
+                QmixProcessor q; q.setPlayConfigDetails (2, 2, 44100.0, 256); q.prepareToPlay (44100.0, 256); q.phaseMode = mode;
+                const int b = q.createBand (100.0f, 30.0f, type); q.setBandParam (b, "q", 40.0f); q.setBandParam (b, "slope", 8.0f);
+                Random r (5); AudioBuffer<float> buf (2, 256); MidiBuffer m; double peak = 0;
+                for (int k = 0; k < 44100 * 10 / 256; ++k)
+                {
+                    for (int c = 0; c < 2; ++c) for (int i = 0; i < 256; ++i) buf.setSample (c, i, (r.nextFloat() - 0.5f) * 0.5f);
+                    if (k % 20 == 0) { q.setBandParam (b, "freq", (k / 20) % 2 ? 10000.0f : 60.0f); q.setBandParam (b, "q", (k / 40) % 2 ? 40.0f : 0.3f); }
+                    q.processBlock (buf, m);
+                    for (int i = 0; i < 256; ++i) peak = jmax (peak, (double) std::abs (buf.getSample (0, i)));
+                }
+                double mx = -200;
+                for (double qq : { 40.0, 0.3 }) for (double f = 20; f < 20000; f *= 1.005) for (double fc : { 60.0, 10000.0 })
+                    mx = jmax (mx, qmix::analogDb (qmix::designAnalog (type, fc, 30.0, qq, 8), f));
+                std::cout << "SAUTS " << "(rampe)" << " " << qmix::modeName (mode) << " " << qmix::typeName (type) << " : crete " << Decibels::gainToDecibels (peak) << " dBFS (gain max des reglages " << mx << " dB)\n";
+            }
+
+    // 0 bis. essai de robustesse : réglages aléatoires à chaque bloc, tous modes, 60 s de bruit
+    for (int mode = 0; mode < 3; ++mode)
+    {
+        QmixProcessor q; q.setPlayConfigDetails (2, 2, 44100.0, 256); q.prepareToPlay (44100.0, 256);
+        q.phaseMode = mode;
+        Random r (11 + mode); AudioBuffer<float> b (2, 256); MidiBuffer m;
+        for (int i = 0; i < 24; ++i) q.createBand (20.0f + r.nextFloat() * 20000.0f, 0.0f, r.nextInt (qmix::numTypes));
+        double peak = 0; bool bad = false;
+        for (int k = 0; k < 44100 * 60 / 256; ++k)
+        {
+            for (int c = 0; c < 2; ++c) for (int i = 0; i < 256; ++i) b.setSample (c, i, (r.nextFloat() - 0.5f) * 0.5f);
+            if (k % 3 == 0)
+            {
+                const int band = r.nextInt (24);
+                for (auto* id : { "freq", "gain", "q", "slope", "place", "type", "dyn", "thresh", "range", "on" })
+                    if (r.nextFloat() < 0.3f) if (auto* pp = q.apvts.getParameter (QmixProcessor::bandId (band, id))) pp->setValueNotifyingHost (r.nextFloat());
+                if (k % 300 == 0) { q.analogFlavour = r.nextInt (3); if (auto* cp = q.apvts.getParameter ("color")) cp->setValueNotifyingHost (r.nextFloat()); }
+            }
+            q.processBlock (b, m);
+            for (int c = 0; c < 2; ++c) for (int i = 0; i < 256; ++i) { const float v = b.getSample (c, i); if (! std::isfinite (v)) bad = true; peak = jmax (peak, (double) std::abs (v)); }
+            if (mode == 2 && k % 50 == 0) Thread::sleep (1);
+        }
+        std::cout << "ROBUSTESSE mode " << qmix::modeName (mode) << " : " << (bad ? "NaN/Inf !" : "aucun NaN ni Inf") << " (crete " << Decibels::gainToDecibels (peak) << " dBFS avec gains et Q aleatoires jusqu'aux extremes)\n";
+    }
+
     QmixProcessor p;
     p.setPlayConfigDetails (2, 2, 48000.0, 512);
     p.prepareToPlay (48000.0, 512);

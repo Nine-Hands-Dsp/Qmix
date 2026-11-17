@@ -280,7 +280,7 @@ f.append(KeepTogether([P("13. Caractéristiques techniques", "h1"), table([
     ["Latence", "0 en Zero Latency et Analog ; 2 048 / 4 096 / 8 192 échantillons en Linear Phase (Low / Medium / High)"],
     ["Couleur", "COLOR 0 à 100 % en Analog SSL G (harmonique 2 dominante) et Neve VR (grave saturé, harmonique 3) ; anti-repliement ADAA, sans latence"],
     ["Dynamique", "détecteur passe-bande sur la bande, attaque 4 ms, retour 120 ms, rapport 2:1, genou 6 dB, seuil −60 à 0 dB, plage ±30 dB"],
-    ["Moteur", "filtres à variables d'état (calcul en double précision), réglages lissés sans bruit de zipper"],
+    ["Moteur", "filtres à variables d'état, tout le trajet audio en double précision ; coefficients interpolés échantillon par échantillon quand un réglage bouge (pas de bruit de zipper, même en automation rapide) ; contournement par le DAW compensé en latence"],
     ["Analyseur", "FFT 8 192 points, fenêtre Blackman-Harris, pente 4,5 dB/oct, avant / après"],
     ["MIDI", "MIDI Learn sur tous les potards, aucun CC par défaut"],
     ["Fenêtre", "60 / 75 / 100 %, jusqu'à 150 %, jamais sous 60 % ; anti-gel v2 sous Windows"]],

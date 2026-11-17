@@ -49,6 +49,7 @@ cmake --build build --config Release
 
 | Version | Changements |
 |---|---|
+| 1.2.2 | Moteur revu : trajet en double précision, coefficients interpolés à chaque échantillon (aucun zipper), section par section ; jusqu'à 4 fois moins de CPU en Analog (bandes dynamiques, coupes raides) ; couleur COLOR sans perte d'aigu (l'anti-repliement retirait jusqu'à 11 dB à 20 kHz) ; contournement par le DAW compensé en latence ; phase linéaire : plus de passage non retardé au changement de mode, rendu hors temps réel sans blanc. |
 | 1.2.1 | Nouveau nom : QMix (fichiers QMix.vst3 et QMix-VST3-…zip ; les projets existants retrouvent le plugin). |
 | 1.2.0 | Couleur de console (potard COLOR) en Analog SSL G et Neve VR, sans latence (anti-repliement ADAA). |
 | 1.1.0 | Mode Analog : caractères SSL 4000 G et Neve VR (Clean reste disponible), choix enregistré avec le projet et les presets. |

@@ -32,17 +32,23 @@ namespace qmix
         double af (double z) const { return logCosh (z + b) - z * tb; }
     };
 
-    // anti-repliement du 1er ordre (ADAA)
+    // anti-repliement du 1er ordre (ADAA), appliqué seulement à la partie non linéaire :
+    // F(z) = s z + r(z), s = F'(0). La partie linéaire passe telle quelle (pas de moyenne entre deux
+    // échantillons, donc ni perte d'aigu ni retard d'un demi-échantillon) ; seul le résidu r(z), qui
+    // porte les harmoniques, est moyenné par sa primitive.
     struct Adaa
     {
         double x1 = 0.0;
         void reset() { x1 = 0.0; }
         double process (const BiasedTanh& s, double x)
         {
+            const double sl = 1.0 / s.norm;
+            auto r  = [&] (double z) { return s.f (z) - sl * z; };
+            auto ar = [&] (double z) { return s.af (z) - 0.5 * sl * z * z; };
             const double d = x - x1;
-            const double y = std::abs (d) > 1.0e-6 ? (s.af (x) - s.af (x1)) / d : s.f (0.5 * (x + x1));
+            const double res = std::abs (d) > 1.0e-5 ? (ar (x) - ar (x1)) / d : r (0.5 * (x + x1));
             x1 = x;
-            return y;
+            return sl * x + res;
         }
     };
 

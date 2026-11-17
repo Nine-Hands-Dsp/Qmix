@@ -21,6 +21,7 @@ public:
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     using AudioProcessor::processBlock;
+    void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;   // contournement par l'hôte : latence compensée
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
@@ -124,8 +125,8 @@ private:
     //------------------------------------------------------------------ moteur IIR (Zero Latency / Analog / bandes dynamiques)
     struct BandDsp
     {
-        qmix::SectionCoeffs c[qmix::kMaxSections];
-        int n = 0;
+        qmix::SectionCoeffs c[qmix::kMaxSections], cPrev[qmix::kMaxSections];
+        int n = 0, sinceSelect = 0;
         qmix::SvfState st[2][qmix::kMaxSections];
         int lastType = -1, lastSlope = -1, lastMode = -1;
         double sFreq = 1000, sGain = 0, sQ = 1, amt = 0;   // valeurs lissées
@@ -140,7 +141,8 @@ private:
         void reset() { for (auto& ch : st) for (auto& s : ch) s.reset(); detSt[0].reset(); detSt[1].reset(); }
     };
     BandDsp dsp[qmix::kNumBands];
-    void runBands (float* L, float* R, int n, bool dynamicOnly, int mode);
+    void runBands (double* L, double* R, int n, bool dynamicOnly, int mode);
+    std::vector<double> workL, workR;   // trajet audio en double précision
 
     //------------------------------------------------------------------ phase linéaire : matrice 2 x 2 de convolutions (L/R + Mid/Side)
     class FirDesigner;
@@ -150,7 +152,7 @@ private:
     juce::AudioBuffer<float> lpIn, lpTmp;
     juce::AudioBuffer<float> dryDelay;       // chemin sec retardé (Power) en phase linéaire
     int dryPos = 0;
-    int activeMode = -1, activeLatency = 0, fadeIn = 0;
+    int activeMode = -1, activeQuality = -1, activeLatency = 0, fadeIn = 0;
 
     qmix::ConsoleColour colour;
     double colorSmooth = 0.5;

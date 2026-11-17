@@ -220,11 +220,16 @@ namespace qmix
         double S11 = 0, S12 = 0, S22 = 0, R1 = 0, R2 = 0;
         constexpr int M = 48;
         const double wlo = std::max (1e-4, w0 * 0.1);
-        for (int i = 0; i < M; ++i)
+        const double step = std::pow (kPi / wlo, 1.0 / (M - 1));
+        // |H(jΩ)|² en réel (sans nombres complexes) : N = m0 s² + (m0 k + m1) s + m0 + m2
+        const double n2 = s.m0, n1 = s.m0 * s.k + s.m1, n0 = s.m0 + s.m2, toOmega = fs / (2 * kPi * s.fn);
+        double w = wlo;
+        for (int i = 0; i < M; ++i, w *= step)
         {
-            const double w = wlo * std::pow (kPi / wlo, (double) i / (M - 1));
             const double p1 = phi1 (w), p0 = 1 - p1, p2 = 4 * p0 * p1;
-            const double T = std::norm (sectionAnalog (s, w * fs / (2 * kPi))) * (A0 * p0 + A1 * p1 + A2 * p2);
+            const double om = w * toOmega, om2 = om * om;
+            const double nr = n0 - n2 * om2, ni = n1 * om, dr = 1.0 - om2, di = s.k * om;
+            const double T = (nr * nr + ni * ni) / (dr * dr + di * di) * (A0 * p0 + A1 * p1 + A2 * p2);
             if (T < 1e-20) continue;
             const double wt = 1.0 / (T * T), y = T - B0 * p0;
             S11 += p1 * p1 * wt; S12 += p1 * p2 * wt; S22 += p2 * p2 * wt; R1 += p1 * y * wt; R2 += p2 * y * wt;
@@ -334,10 +339,15 @@ namespace qmix
     inline double sectionError (const Section& an, const Section& dg, double fs)
     {
         double e = 0.0;
-        for (int i = 0; i < 32; ++i)
+        // 32 points répartis de 20 Hz à 20 kHz, plus 7 points serrés autour de la fréquence propre
+        // (une résonance étroite, Q élevé, tomberait sinon entre deux points)
+        static const double around[7] = { 0.85, 0.92, 0.97, 1.0, 1.03, 1.08, 1.17 };
+        const double qn = an.firstOrder ? 1.0 : std::max (1.0, 1.0 / std::max (1e-3, an.k));
+        for (int i = 0; i < 39; ++i)
         {
-            const double f = 20.0 * std::pow (1000.0, (double) i / 31.0);
-            if (f >= fs * 0.5) break;
+            const double f = i < 32 ? 20.0 * std::pow (1000.0, (double) i / 31.0)
+                                    : an.fn * std::pow (around[i - 32], 1.0 / std::sqrt (qn));
+            if (f >= fs * 0.5) { if (i < 32) i = 31; continue; }
             const double r = std::abs (sectionAnalog (an, f));
             if (r < 0.03) continue;
             const double w = prewarp (f, fs);
@@ -414,10 +424,10 @@ namespace qmix
     struct SectionCoeffs
     {
         bool firstOrder = false;
-        double a1 = 0, a2 = 0, a3 = 0, m0 = 1, m1 = 0, m2 = 0, G = 0;
+        double a1 = 0, a2 = 0, a3 = 0, m0 = 1, m1 = 0, m2 = 0, G = 0, g = 0, k = 1;
         void from (const Section& s)
         {
-            firstOrder = s.firstOrder; m0 = s.m0; m1 = s.m1; m2 = s.m2;
+            firstOrder = s.firstOrder; m0 = s.m0; m1 = s.m1; m2 = s.m2; g = s.g; k = s.k;
             if (firstOrder) { G = s.g / (1.0 + s.g); return; }
             a1 = 1.0 / (1.0 + s.g * (s.g + s.k)); a2 = s.g * a1; a3 = s.g * a2;
         }

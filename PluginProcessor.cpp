@@ -235,6 +235,8 @@ void QmixProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     dryDelay.setSize (2, firLength (2) + maxBlock * 2 + 8);
     dryDelay.clear(); dryPos = 0;
     monoTmp.assign ((size_t) maxBlock * 2, 0.0f);
+    workL.assign ((size_t) maxBlock * 2, 0.0);
+    workR.assign ((size_t) maxBlock * 2, 0.0);
     for (auto& d : dsp) { d.reset(); d.primed = false; d.amt = 0.0; d.lastType = -1; d.env = 0.0; d.dynGain = 0.0; }
     outSmooth = Decibels::decibelsToGain ((double) outParam->load());
     colour.prepare (sampleRate);
@@ -325,11 +327,77 @@ int QmixProcessor::Fifo::pull (float* dst, int n)
 
 //==============================================================================
 //  Bandes IIR (Zero Latency / Analog) ; en phase linéaire, seulement les bandes dynamiques
+//  Tout le trajet est en double précision. Chaque bande est traitée par blocs de 64 échantillons,
+//  section par section (boucles serrées), et ses coefficients sont interpolés échantillon par
+//  échantillon quand un réglage bouge : aucun bruit de zipper, même en automation rapide.
 //==============================================================================
-void QmixProcessor::runBands (float* L, float* R, int n, bool dynamicOnly, int mode)
+// rampe entre deux jeux de coefficients : on interpole g et k (fréquence et amortissement du filtre à
+// variables d'état), jamais directement a1 / a2 / a3, pour que chaque échantillon soit un vrai filtre stable
+static inline qmix::SectionCoeffs lerpCoeffs (const qmix::SectionCoeffs& a, const qmix::SectionCoeffs& b, double t) noexcept
+{
+    qmix::SectionCoeffs c = b;
+    const double g = a.g + t * (b.g - a.g), k = a.k + t * (b.k - a.k);
+    c.a1 = 1.0 / (1.0 + g * (g + k)); c.a2 = g * c.a1; c.a3 = g * c.a2;
+    c.m0 = a.m0 + t * (b.m0 - a.m0); c.m1 = a.m1 + t * (b.m1 - a.m1); c.m2 = a.m2 + t * (b.m2 - a.m2);
+    return c;
+}
+
+// une section sur un bloc, coefficients fixes ou interpolés (rampe linéaire de c0 vers c1)
+static inline void runSection (double* y, int len, const qmix::SectionCoeffs& c0, const qmix::SectionCoeffs& c1, bool ramp, qmix::SvfState& st) noexcept
+{
+    double ic1 = st.ic1, ic2 = st.ic2;
+    const double inv = 1.0 / len;
+    if (c1.firstOrder)
+    {
+        for (int i = 0; i < len; ++i)
+        {
+            const double t = (i + 1) * inv;
+            const double gg = ramp ? c0.g + t * (c1.g - c0.g) : c1.g;
+            const double G = gg / (1.0 + gg);
+            const double m0 = ramp ? c0.m0 + t * (c1.m0 - c0.m0) : c1.m0;
+            const double m2 = ramp ? c0.m2 + t * (c1.m2 - c0.m2) : c1.m2;
+            const double x = y[i];
+            const double v = (x - ic1) * G;
+            const double lp = v + ic1;
+            ic1 = lp + v;
+            y[i] = m0 * x + m2 * lp;
+        }
+    }
+    else if (! ramp)
+    {
+        const double a1 = c1.a1, a2 = c1.a2, a3 = c1.a3, m0 = c1.m0, m1 = c1.m1, m2 = c1.m2;
+        for (int i = 0; i < len; ++i)
+        {
+            const double x = y[i];
+            const double v3 = x - ic2;
+            const double v1 = a1 * ic1 + a2 * v3;
+            const double v2 = ic2 + a2 * ic1 + a3 * v3;
+            ic1 = 2.0 * v1 - ic1;
+            ic2 = 2.0 * v2 - ic2;
+            y[i] = m0 * x + m1 * v1 + m2 * v2;
+        }
+    }
+    else
+    {
+        for (int i = 0; i < len; ++i)
+        {
+            const auto c = lerpCoeffs (c0, c1, (i + 1) * inv);
+            const double x = y[i];
+            const double v3 = x - ic2;
+            const double v1 = c.a1 * ic1 + c.a2 * v3;
+            const double v2 = ic2 + c.a2 * ic1 + c.a3 * v3;
+            ic1 = 2.0 * v1 - ic1;
+            ic2 = 2.0 * v2 - ic2;
+            y[i] = c.m0 * x + c.m1 * v1 + c.m2 * v2;
+        }
+    }
+    st.ic1 = ic1; st.ic2 = ic2;
+}
+
+void QmixProcessor::runBands (double* L, double* R, int n, bool dynamicOnly, int mode)
 {
     const double scale = scaleParam->load() * 0.01;
-    constexpr int kSub = 32;
+    constexpr int kSub = 64;
     const double aSm  = 1.0 - std::exp (-(double) kSub / (0.025 * sr));   // ~25 ms
     const double aAmt = 1.0 - std::exp (-(double) kSub / (0.012 * sr));   // ~12 ms
     const double atk  = 1.0 - std::exp (-1.0 / (0.004 * sr));             // détecteur : 4 ms
@@ -338,6 +406,9 @@ void QmixProcessor::runBands (float* L, float* R, int n, bool dynamicOnly, int m
     // en phase linéaire, les bandes dynamiques restent en Analog « Clean »
     const int flavour = (designMode == qmix::analog && ! dynamicOnly) ? analogFlavour.load() : (int) qmix::flavourClean;
     const int modeKey = designMode * 10 + flavour;        // un changement de caractère = fondu court, comme un changement de forme
+    const int selectEvery = jmax (1, (int) (0.02 * sr / kSub));            // Analog : nouveau choix des sections au plus toutes les 20 ms
+
+    double x0[kSub], x1[kSub], y0[kSub], y1[kSub];
 
     for (int b = 0; b < qmix::kNumBands; ++b)
     {
@@ -357,7 +428,7 @@ void QmixProcessor::runBands (float* L, float* R, int n, bool dynamicOnly, int m
             d.amt = 0.0; d.lastType = -1; d.env = 0.0; d.dynGain = 0.0; dynDb[b] = 0.0f;
             continue;
         }
-        if (! d.primed) { d.sFreq = tf; d.sGain = tg; d.sQ = tq; d.primed = true; d.reset(); d.lastType = type; d.lastSlope = slope; d.lastMode = modeKey; d.dFreq = -1; d.kFreq = -1; }
+        if (! d.primed) { d.sFreq = tf; d.sGain = tg; d.sQ = tq; d.primed = true; d.reset(); d.lastType = type; d.lastSlope = slope; d.lastMode = modeKey; d.dFreq = -1; d.kFreq = -1; d.n = 0; }
 
         const bool shapeChange = type != d.lastType || slope != d.lastSlope || modeKey != d.lastMode;
         const double targetAmt = (active && ! shapeChange) ? 1.0 : 0.0;
@@ -365,7 +436,7 @@ void QmixProcessor::runBands (float* L, float* R, int n, bool dynamicOnly, int m
         // détecteur : passe-bande à la fréquence de la bande (plateaux : Q large)
         if (isDyn)
         {
-            qmix::Section ds; ds.fn = tf; ds.k = 1.0 / (qmix::hasGain (type) && type != qmix::bell ? 0.7 : jlimit (0.3, 8.0, tq)); ds.m0 = 0; ds.m1 = ds.k; ds.m2 = 0;
+            qmix::Section ds; ds.fn = tf; ds.k = 1.0 / (type != qmix::bell ? 0.7 : jlimit (0.3, 8.0, tq)); ds.m0 = 0; ds.m1 = ds.k; ds.m2 = 0;
             ds.g = qmix::prewarp (tf, sr);
             d.det.from (ds);
         }
@@ -373,16 +444,22 @@ void QmixProcessor::runBands (float* L, float* R, int n, bool dynamicOnly, int m
         for (int start = 0; start < n; start += kSub)
         {
             const int len = jmin (kSub, n - start);
-            d.amt   += (targetAmt - d.amt) * aAmt;
-            if (shapeChange && d.amt < 1.0e-3) { d.lastType = type; d.lastSlope = slope; d.lastMode = modeKey; d.reset(); d.amt = 0.0; d.dFreq = -1; d.kFreq = -1; }
+            const double amtPrev = d.amt;
+            d.amt += (targetAmt - d.amt) * aAmt;
+            bool justReset = false;
+            if (shapeChange && d.amt < 1.0e-3) { d.lastType = type; d.lastSlope = slope; d.lastMode = modeKey; d.reset(); d.amt = 0.0; d.dFreq = -1; d.kFreq = -1; justReset = true; }
             d.sFreq *= std::pow (tf / d.sFreq, aSm);
             d.sQ    *= std::pow (tq / d.sQ, aSm);
             d.sGain += (tg - d.sGain) * aSm;
+            if (std::abs (d.sFreq / tf - 1.0) < 1.0e-5) d.sFreq = tf;             // arrivée exacte : plus aucun recalcul
+            if (std::abs (d.sQ / tq - 1.0) < 1.0e-5) d.sQ = tq;
+            if (std::abs (d.sGain - tg) < 1.0e-4) d.sGain = tg;
 
             // bande dynamique : niveau dans la bande -> gain ajouté (2:1 au-dessus du seuil, genou doux de 6 dB, jusqu'à RANGE)
             double dyn = 0.0;
             if (isDyn)
             {
+                double env = d.env;
                 for (int i = start; i < start + len; ++i)
                 {
                     double x;
@@ -396,61 +473,70 @@ void QmixProcessor::runBands (float* L, float* R, int n, bool dynamicOnly, int m
                                           if (R != nullptr) x = jmax (x, std::abs (d.det.tick (R[i], d.detSt[1])));
                                           break;
                     }
-                    d.env += (x - d.env) * (x > d.env ? atk : rel);
+                    env += (x - env) * (x > env ? atk : rel);
                 }
-                const double lev = 20.0 * std::log10 (d.env + 1.0e-9);
-                const double over = lev - thr;
-                const double knee = 6.0;
-                double o = over <= -knee * 0.5 ? 0.0 : over >= knee * 0.5 ? over : (over + knee * 0.5) * (over + knee * 0.5) / (2.0 * knee);
+                d.env = env;
+                const double over = 20.0 * std::log10 (env + 1.0e-9) - thr;
+                constexpr double knee = 6.0;
+                const double o = over <= -knee * 0.5 ? 0.0 : over >= knee * 0.5 ? over : (over + knee * 0.5) * (over + knee * 0.5) / (2.0 * knee);
                 dyn = jlimit (-std::abs (rng), std::abs (rng), (rng >= 0 ? 1.0 : -1.0) * o * 0.5);
                 d.dynGain = dyn;
                 dynDb[b] = (float) dyn;
             }
             else if (d.dynGain != 0.0) { d.dynGain = 0.0; dynDb[b] = 0.0f; }
 
+            //---------------------------------------------------------- coefficients (seulement si un réglage a bougé)
             const bool gainType = qmix::hasGain (d.lastType);
             const double gNow = gainType ? (d.sGain + dyn) * d.amt : d.sGain;
-            if (std::abs (d.sFreq - d.dFreq) > 1.0e-6 * d.sFreq || std::abs (gNow - d.dGain) > 1.0e-5 || std::abs (d.sQ - d.dQ) > 1.0e-6 * d.sQ
-                || (! gainType && std::abs (d.amt - d.dAmt) > 1.0e-6))
+            bool ramp = false;
+            ++d.sinceSelect;
+            if (d.dFreq < 0 || d.sFreq != d.dFreq || std::abs (gNow - d.dGain) > 0.002 || d.sQ != d.dQ)
             {
-                // Analog : le choix de la meilleure section n'est refait que si la bande a nettement bougé
-                const bool reselect = d.kFreq < 0 || std::abs (std::log (d.sFreq / d.kFreq)) > 0.03 || std::abs (gNow - d.kGain) > 0.75
-                                   || std::abs (std::log (d.sQ / d.kQ)) > 0.05;
-                if (reselect) { d.kFreq = d.sFreq; d.kGain = gNow; d.kQ = d.sQ; }
+                // Analog : le choix de la meilleure façon d'apparier chaque section (coûteux) n'est refait que si la
+                // bande a nettement bougé, et au plus toutes les 20 ms ; entre deux, la même façon est réutilisée.
+                const bool moved = d.kFreq < 0 || std::abs (std::log (d.sFreq / d.kFreq)) > 0.12 || std::abs (gNow - d.kGain) > 1.5
+                                   || std::abs (std::log (d.sQ / d.kQ)) > 0.15;
+                const bool reselect = d.kFreq < 0 || (moved && d.sinceSelect >= selectEvery);
+                if (reselect) { d.kFreq = d.sFreq; d.kGain = gNow; d.kQ = d.sQ; d.sinceSelect = 0; }
                 const auto des = qmix::design (d.lastType, d.sFreq, gNow, d.sQ, d.lastSlope, sr, designMode, d.kinds, ! reselect, flavour);
+                ramp = ! justReset && d.n == des.n && d.dFreq >= 0;
+                for (int s = 0; s < des.n; ++s) { d.cPrev[s] = d.c[s]; d.c[s].from (des.s[s]); }
                 d.n = des.n;
-                for (int s = 0; s < des.n; ++s) d.c[s].from (des.s[s]);
-                d.dFreq = d.sFreq; d.dGain = gNow; d.dQ = d.sQ; d.dAmt = d.amt;
+                d.dFreq = d.sFreq; d.dGain = gNow; d.dQ = d.sQ;
             }
-            const double wet = gainType ? 1.0 : d.amt;
-            const double dry = 1.0 - wet;
+            const double wet0 = gainType ? 1.0 : (justReset ? 0.0 : amtPrev), wet1 = gainType ? 1.0 : d.amt;
 
-            auto run = [&] (double x, int ch) noexcept
+            //---------------------------------------------------------- filtrage
+            auto runChannel = [&] (const double* xin, double* yout, int ch)
             {
-                double y = x;
-                for (int s = 0; s < d.n; ++s) y = d.c[s].tick (y, d.st[ch][s]);
-                return dry * x + wet * y;
-            };
-
-            for (int i = start; i < start + len; ++i)
-            {
-                switch (place)
-                {
-                    case qmix::left:  L[i] = (float) run (L[i], 0); break;
-                    case qmix::right: R[i] = (float) run (R[i], 1); break;
-                    case qmix::mid:
-                    case qmix::side:
+                std::copy (xin, xin + len, yout);
+                for (int s = 0; s < d.n; ++s) runSection (yout, len, ramp ? d.cPrev[s] : d.c[s], d.c[s], ramp, d.st[ch][s]);
+                if (wet0 != 1.0 || wet1 != 1.0)
+                    for (int i = 0; i < len; ++i)
                     {
-                        double m = 0.5 * (L[i] + R[i]), s = 0.5 * (L[i] - R[i]);
-                        if (place == qmix::mid) m = run (m, 0); else s = run (s, 1);
-                        L[i] = (float) (m + s); R[i] = (float) (m - s);
-                        break;
+                        const double w = wet0 + (wet1 - wet0) * (i + 1) / len;
+                        yout[i] = xin[i] + w * (yout[i] - xin[i]);
                     }
-                    default:
-                        L[i] = (float) run (L[i], 0);
-                        if (R != nullptr) R[i] = (float) run (R[i], 1);
-                        break;
+            };
+            double* l = L + start;
+            double* r = R != nullptr ? R + start : nullptr;
+            switch (place)
+            {
+                case qmix::left:  runChannel (l, y0, 0); std::copy (y0, y0 + len, l); break;
+                case qmix::right: runChannel (r, y1, 1); std::copy (y1, y1 + len, r); break;
+                case qmix::mid:
+                case qmix::side:
+                {
+                    for (int i = 0; i < len; ++i) { x0[i] = 0.5 * (l[i] + r[i]); x1[i] = 0.5 * (l[i] - r[i]); }
+                    if (place == qmix::mid) { runChannel (x0, y0, 0); std::copy (y0, y0 + len, x0); }
+                    else                    { runChannel (x1, y1, 1); std::copy (y1, y1 + len, x1); }
+                    for (int i = 0; i < len; ++i) { l[i] = x0[i] + x1[i]; r[i] = x0[i] - x1[i]; }
+                    break;
                 }
+                default:
+                    runChannel (l, y0, 0); std::copy (y0, y0 + len, l);
+                    if (r != nullptr) { runChannel (r, y1, 1); std::copy (y1, y1 + len, r); }
+                    break;
             }
         }
     }
@@ -502,6 +588,8 @@ void QmixProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
 
     float* L = buffer.getWritePointer (0);
     float* R = numCh > 1 ? buffer.getWritePointer (1) : nullptr;
+    double* wL = workL.data();
+    double* wR = numCh > 1 ? workR.data() : nullptr;
 
     //-------------------------------------------------------------- analyseur : entrée
     const int am = analyzerMode.load();
@@ -512,12 +600,23 @@ void QmixProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
     }
 
     const int mode = phaseMode.load();
-    if (mode != activeMode)
+    const int quality = lpQuality.load();
+    if (mode != activeMode || (mode == qmix::linearPhase && quality != activeQuality))
     {
         if (activeMode >= 0) fadeIn = (int) (0.04 * sr);       // changement de mode : court fondu d'entrée
-        activeMode = mode;
+        if (mode == qmix::linearPhase) { firReady = false; if (designer != nullptr) designer->invalidate(); }
+        activeMode = mode; activeQuality = quality;
         for (auto& d : dsp) { d.reset(); d.dFreq = -1; }
     }
+    // phase linéaire : silence tant que les nouveaux filtres ne sont pas chargés (sinon un court passage non retardé).
+    // En rendu hors temps réel (bounce), on attend plutôt les filtres : le fichier rendu ne commence jamais par un blanc.
+    if (mode == qmix::linearPhase && ! firReady.load() && isNonRealtime())
+    {
+        for (int k = 0; k < 400 && ! firReady.load(); ++k) Thread::sleep (5);
+        Thread::sleep (60);                                    // chargement du filtre par le moteur de convolution
+        fadeIn = 0;
+    }
+    if (mode == qmix::linearPhase && ! firReady.load()) fadeIn = jmax (fadeIn, (int) (0.04 * sr));
     const int latency = latencyFor (mode, lpQuality.load());
 
     // chemin sec (Power), retardé de la latence en phase linéaire
@@ -553,13 +652,16 @@ void QmixProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
         if (cross) { runConv (1, 1, 1); runConv (2, 0, 2); }
         for (int i = 0; i < n; ++i)
         {
-            L[i] = lpTmp.getSample (0, i) + (cross ? lpTmp.getSample (1, i) : 0.0f);
-            if (R != nullptr) R[i] = lpTmp.getSample (3, i) + (cross ? lpTmp.getSample (2, i) : 0.0f);
+            wL[i] = (double) lpTmp.getSample (0, i) + (cross ? (double) lpTmp.getSample (1, i) : 0.0);
+            if (wR != nullptr) wR[i] = (double) lpTmp.getSample (3, i) + (cross ? (double) lpTmp.getSample (2, i) : 0.0);
         }
-        runBands (L, R, n, true, qmix::analog);                // bandes dynamiques : IIR « Analog » après le RIF
+        runBands (wL, wR, n, true, qmix::analog);              // bandes dynamiques : IIR « Analog » après le RIF
     }
     else
-        runBands (L, R, n, false, mode);
+    {
+        for (int i = 0; i < n; ++i) { wL[i] = L[i]; if (wR != nullptr) wR[i] = R[i]; }
+        runBands (wL, wR, n, false, mode);
+    }
 
     //-------------------------------------------------------------- couleur de console (Analog SSL G / Neve VR), après l'égalisation
     {
@@ -570,8 +672,8 @@ void QmixProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
         if (on || colour.mixLevel() > 1.0e-6)
             for (int i = 0; i < n; ++i)
             {
-                L[i] = (float) colour.process (L[i], 0, on ? 1.0 : 0.0);
-                if (R != nullptr) R[i] = (float) colour.process (R[i], 1, on ? 1.0 : 0.0);
+                wL[i] = colour.process (wL[i], 0, on ? 1.0 : 0.0);
+                if (wR != nullptr) wR[i] = colour.process (wR[i], 1, on ? 1.0 : 0.0);
             }
     }
 
@@ -588,9 +690,9 @@ void QmixProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
         if (fadeIn > 0) { fade = 1.0 - (double) fadeIn / fadeLen; --fadeIn; }
         for (int c = 0; c < numCh; ++c)
         {
-            auto* x = buffer.getWritePointer (c);
+            const double wet = c == 0 ? wL[i] : wR[i];
             const double dryv = (double) dryBuf.getSample (c, i);
-            x[i] = (float) (fade * (dryv + powerSmooth * ((double) x[i] * outSmooth - dryv)));
+            buffer.getWritePointer (c)[i] = (float) (fade * (dryv + powerSmooth * (wet * outSmooth - dryv)));
         }
     }
 
@@ -600,6 +702,30 @@ void QmixProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midi)
         for (int i = 0; i < n; ++i) monoTmp[(size_t) i] = R != nullptr ? 0.5f * (L[i] + R[i]) : L[i];
         postFifo.push (monoTmp.data(), n);
     }
+}
+
+//==============================================================================
+//  Contournement par l'hôte : le son passe tel quel, mais retardé de la latence annoncée
+//  (sinon, en Linear Phase, la piste contournée serait en avance sur le reste du mixage).
+void QmixProcessor::processBlockBypassed (AudioBuffer<float>& buffer, MidiBuffer&)
+{
+    ScopedNoDenormals noDenormals;
+    const int numCh = jmin (2, buffer.getNumChannels());
+    const int n = buffer.getNumSamples();
+    const int latency = getLatencySamples();
+    const int len = dryDelay.getNumSamples();
+    if (len <= latency + 1) return;
+    for (int i = 0; i < n; ++i)
+    {
+        const int rd = (dryPos - latency + len) % len;
+        for (int c = 0; c < numCh; ++c)
+        {
+            dryDelay.setSample (c, dryPos, buffer.getSample (c, i));
+            buffer.setSample (c, i, dryDelay.getSample (c, rd));
+        }
+        dryPos = (dryPos + 1) % len;
+    }
+    for (auto& d : dsp) { d.reset(); d.primed = false; d.amt = 0.0; }   // reprise propre à la sortie du contournement
 }
 
 //==============================================================================
