@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 #include "QmixMenu.h"
 #include "WindowMinSize.h"
+#include "NhRackKnob.h"
 
 class QmixEditor;
 
@@ -35,6 +36,7 @@ namespace QmixUi
     {
     public:
         Knob (QmixEditor& e, String labelText);
+        ~Knob() override;
         void attach (RangedAudioParameter* p, Colour c, bool bipolar);
         void detach();
         void paint (Graphics&) override;
@@ -44,6 +46,13 @@ namespace QmixUi
         void mouseDoubleClick (const MouseEvent&) override;
         void mouseWheelMove (const MouseEvent&, const MouseWheelDetails&) override;
         void tick();                              // 30 Hz : flou de mouvement
+        Point<float> centre() const;
+        float ringRadius() const;
+        String valueText() const;
+        Rectangle<float> labelBox() const;
+        float pillFont() const;
+        nhrack::PillOverlay::Pill pill() const;
+        float valueFont = 7.8f, ringScale = 1.0f;   // ringScale < 1 : potards serrés, laisse de la place à la pastille
         RangedAudioParameter* param = nullptr;
         String label;
         Colour colour { QmixMenu::kAccent };
@@ -52,7 +61,9 @@ namespace QmixUi
     private:
         QmixEditor& ed;
         std::unique_ptr<ParameterAttachment> att;
-        float norm = 0.0f, dragStart = 0.0f, shownAngle = 0.0f, prevAngle = 0.0f, blur = 0.0f;
+        float norm = 0.0f, dragStart = 0.0f, shownAngle = 0.0f, prevAngle = 0.0f, blur = 0.0f, blurDir = 1.0f;
+        Image face;               // face d'alu anodisé précalculée (timer)
+        int facePx = 0;
         bool dragging = false;
         float angleOf (float v) const;
     };
@@ -158,6 +169,7 @@ public:
     double rangeDb() const { static const double r[4] = { 6, 12, 24, 30 }; return r[juce::jlimit (0, 3, proc.rangeIdx.load())]; }
     void askRepaint (juce::Rectangle<int> r);
 
+    nhrack::PillOverlay pills;                        // pastilles de valeur, au-dessus de tout (déclaré avant les potards)
     QmixUi::Display display;
     QmixUi::BandPanel panel;
     QmixUi::Knob outKnob, scaleKnob, colorKnob;
