@@ -197,6 +197,7 @@ private:
 
     // barre de presets / ligne d'état (même pastille)
     juce::String status;
+    juce::String lastStatusDrawn;      // texte affiché au dernier dessin (redessin quand il change)
     double statusTime = -10.0;
     float statusAlpha = 0.0f;
     int lastMidiAct = 0;

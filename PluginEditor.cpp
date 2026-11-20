@@ -1,4 +1,6 @@
 #include "PluginEditor.h"
+#include "NineHandsDefaultSize.h"
+#include "NineHandsStatusText.h"
 #include "BinaryData.h"
 
 using namespace juce;
@@ -851,7 +853,7 @@ QmixEditor::QmixEditor (QmixProcessor& p)
     setResizable (true, true);
     setResizeLimits (kW, kH, kMaxW, kMaxH);
     getConstrainer()->setFixedAspectRatio ((double) kW / kH);
-    setScaleIndex (proc.uiSizeIdx.load());
+    setScaleIndex (nhsize::openIndex ("QMix", proc.uiSizeIdx.load(), 3));   // taille de l'instance, sinon taille par défaut choisie
 
     for (int b = 0; b < qmix::kNumBands; ++b) lastVals[(size_t) b] = proc.bandValues (b);
     lastOut = proc.outParam->load(); lastScale = proc.scaleParam->load(); lastPower = proc.powerParam->load() > 0.5f;
@@ -948,7 +950,7 @@ void QmixEditor::paint (Graphics& g)
         if (statusAlpha > 0.01f)
         {
             g.setColour (cAccent.withAlpha (statusAlpha));
-            g.drawFittedText (status, p.reduced (p.getHeight() * 0.5f, 0).toNearestInt(), Justification::centred, 1, 0.6f);
+            nhstatus::draw (g, status, p.reduced (p.getHeight() * 0.5f, 0), Justification::centred);   // chiffres à chasse fixe
         }
     }
 
@@ -1272,8 +1274,16 @@ void QmixEditor::showMainMenu()
     if (proc.learnParam.load() >= 0) midi.addItem (121, "Cancel MIDI learn");
     midi.addItem (122, "Clear all MIDI");
     static const char* sz[3] = { "60 %", "75 %", "100 %" };
-    const int cur = jmax (0, proc.uiSizeIdx.load());
-    for (int i = 0; i < 3; ++i) size.addItem (130 + i, sz[i], true, cur == i);
+    const int defSz = nhsize::defaultIndex ("QMix", 3);
+    const int cur = nhsize::openIndex ("QMix", proc.uiSizeIdx.load(), 3);
+    PopupMenu defSizes;
+    for (int i = 0; i < 3; ++i)
+    {
+        size.addItem (130 + i, String (sz[i]) + (i == defSz ? "  (default)" : ""), true, cur == i);
+        defSizes.addItem (nhsize::idDefault + i, sz[i], true, i == defSz);
+    }
+    size.addSeparator();
+    size.addSubMenu ("Default size", defSizes);     // taille des nouvelles fenêtres, commune à toutes les instances
     for (int i = 0; i < 4; ++i) gl.addItem (140 + i, String ((i + 1) * 25) + " %", true, proc.glowIdx.load() == i);
     PopupMenu modes, qual;
     for (int i = 0; i < qmix::numModes; ++i) modes.addItem (150 + i, qmix::modeName (i), true, proc.phaseMode.load() == i);
@@ -1300,7 +1310,8 @@ void QmixEditor::showMainMenu()
         else if (r >= 110 && r < 114) { proc.rangeIdx = r - 110; display.rebuildCurves(); }
         else if (r == 121) proc.learnParam = -1;
         else if (r == 122) for (auto& x : proc.ccMap) x = -1;
-        else if (r >= 130 && r < 133) { proc.uiSizeIdx = r == 130 ? -1 : r - 130; setScaleIndex (r - 130); }
+        else if (r >= 130 && r < 133) { proc.uiSizeIdx = r - 130; setScaleIndex (r - 130); }
+        else if (r >= nhsize::idDefault && r < nhsize::idDefault + 3) { nhsize::setDefaultIndex ("QMix", r - nhsize::idDefault); proc.uiSizeIdx = -1; setScaleIndex (r - nhsize::idDefault); }
         else if (r >= 140 && r < 144) proc.glowIdx = r - 140;
         else if (r >= 150 && r < 153) { proc.phaseMode = r - 150; display.rebuildCurves(); }
         else if (r >= 160 && r < 163) proc.lpQuality = r - 160;
@@ -1419,8 +1430,8 @@ void QmixEditor::timerCallback()
 
     // fondus : ligne d'état et interrupteur
     const float target = (t - statusTime < 2.5) ? 1.0f : 0.0f;
-    const float na = target > statusAlpha ? jmin (1.0f, statusAlpha + 0.28f) : jmax (0.0f, statusAlpha - 0.11f);
-    if (std::abs (na - statusAlpha) > 0.001f) { statusAlpha = na; askRepaint (pill().expanded (4).toNearestInt()); }
+    const float na = target > statusAlpha ? jmin (target, statusAlpha + 0.28f) : jmax (target, statusAlpha - 0.11f);   // immobile une fois arrivé (sinon 100 / 89 % à chaque image = scintillement)
+    if (std::abs (na - statusAlpha) > 0.001f || (na > 0.0f && status != lastStatusDrawn)) { statusAlpha = na; lastStatusDrawn = status; askRepaint (pill().expanded (4).toNearestInt()); }
     const float pg = pw ? jmin (1.0f, powerGlow + 0.45f) : jmax (0.0f, powerGlow - 0.28f);
     if (std::abs (pg - powerGlow) > 0.001f) { powerGlow = pg; askRepaint (powerRect().expanded (powerRect().getWidth()).toNearestInt()); }
 
