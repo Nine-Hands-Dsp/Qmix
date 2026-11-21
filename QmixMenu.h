@@ -14,11 +14,23 @@ namespace QmixMenu
     inline Font fnt (const Typeface::Ptr& tf, float h) { return Font (FontOptions (tf).withHeight (h)); }
 
     enum Ico { icoNone = 0, icoSave, icoLoad, icoClear, icoMidi, icoSize, icoPreset, icoGlow, icoEq, icoAnalyzer, icoRange,
-               icoShape, icoSlope, icoStereo, icoBypass, icoRemove, icoAdd };
+               icoShape, icoSlope, icoStereo, icoBypass, icoRemove, icoAdd,
+               // formes de bande : dessin de la courbe correspondante
+               icoBell, icoLowShelf, icoHighShelf, icoLowCut, icoHighCut, icoNotch, icoBandPass, icoTilt };
+    inline bool isShapeIco (int i) { return i >= icoBell && i <= icoTilt; }
+    inline int shapeIco (int type) { return icoBell + std::clamp (type, 0, 7); }   // même ordre que qmix::BandType
 
     inline int iconFor (const String& t)
     {
         const auto s = t.toLowerCase();
+        if (s == "bell") return icoBell;
+        if (s == "low shelf") return icoLowShelf;
+        if (s == "high shelf") return icoHighShelf;
+        if (s == "low cut") return icoLowCut;
+        if (s == "high cut") return icoHighCut;
+        if (s == "notch") return icoNotch;
+        if (s == "band pass") return icoBandPass;
+        if (s == "tilt shelf") return icoTilt;
         if (s.startsWith ("save")) return icoSave;
         if (s.startsWith ("load")) return icoLoad;
         if (s.contains ("clear") || s.startsWith ("reset") || s.startsWith ("cancel")) return icoClear;
@@ -69,6 +81,19 @@ namespace QmixMenu
             case icoBypass: p.addCentredArc (P (8, 8.5f).x, P (8, 8.5f).y, 5.5f * k, 5.5f * k, 0.0f, 0.75f, MathConstants<float>::twoPi - 0.75f, true); line (8, 2, 8, 8); break;
             case icoRemove: line (3, 4.5f, 13, 4.5f); p.startNewSubPath (P (4.5f, 4.5f)); p.lineTo (P (5.5f, 13.5f)); p.lineTo (P (10.5f, 13.5f)); p.lineTo (P (11.5f, 4.5f)); line (6.5f, 2.5f, 9.5f, 2.5f); break;
             case icoAdd:    line (8, 3, 8, 13); line (3, 8, 13, 8); break;
+            // formes (0 dB = y 9 ; le haut de l'icône = accentuation)
+            case icoBell:      p.startNewSubPath (P (0.5f, 10.5f)); p.lineTo (P (3.5f, 10.5f)); p.cubicTo (P (6.0f, 10.5f), P (6.3f, 2.5f), P (8.0f, 2.5f));
+                               p.cubicTo (P (9.7f, 2.5f), P (10.0f, 10.5f), P (12.5f, 10.5f)); p.lineTo (P (15.5f, 10.5f)); break;
+            case icoLowShelf:  p.startNewSubPath (P (0.5f, 4.0f)); p.lineTo (P (4.5f, 4.0f)); p.cubicTo (P (7.5f, 4.0f), P (8.5f, 11.5f), P (11.5f, 11.5f)); p.lineTo (P (15.5f, 11.5f)); break;
+            case icoHighShelf: p.startNewSubPath (P (0.5f, 11.5f)); p.lineTo (P (4.5f, 11.5f)); p.cubicTo (P (7.5f, 11.5f), P (8.5f, 4.0f), P (11.5f, 4.0f)); p.lineTo (P (15.5f, 4.0f)); break;
+            case icoLowCut:    p.startNewSubPath (P (2.5f, 15.0f)); p.cubicTo (P (4.0f, 8.0f), P (5.5f, 5.5f), P (8.5f, 5.5f)); p.lineTo (P (15.5f, 5.5f)); break;
+            case icoHighCut:   p.startNewSubPath (P (0.5f, 5.5f)); p.lineTo (P (7.5f, 5.5f)); p.cubicTo (P (10.5f, 5.5f), P (12.0f, 8.0f), P (13.5f, 15.0f)); break;
+            case icoNotch:     p.startNewSubPath (P (0.5f, 5.5f)); p.lineTo (P (5.5f, 5.5f)); p.cubicTo (P (7.0f, 5.5f), P (7.4f, 14.5f), P (8.0f, 14.5f));
+                               p.cubicTo (P (8.6f, 14.5f), P (9.0f, 5.5f), P (10.5f, 5.5f)); p.lineTo (P (15.5f, 5.5f)); break;
+            case icoBandPass:  p.startNewSubPath (P (1.0f, 15.0f)); p.cubicTo (P (4.5f, 13.0f), P (6.0f, 4.0f), P (8.0f, 4.0f));
+                               p.cubicTo (P (10.0f, 4.0f), P (11.5f, 13.0f), P (15.0f, 15.0f)); break;
+            case icoTilt:      p.startNewSubPath (P (0.5f, 12.0f)); p.lineTo (P (2.5f, 12.0f)); p.cubicTo (P (6.0f, 12.0f), P (10.0f, 4.5f), P (13.5f, 4.5f)); p.lineTo (P (15.5f, 4.5f));
+                               fillDots = false; break;
             default: break;
         }
         g.setColour (c);
@@ -138,9 +163,17 @@ namespace QmixMenu
                 g.fillRoundedRectangle (a.reduced (5.0f, 1.0f), 7.0f);
             }
             const auto ib = Rectangle<float> (15.0f, 15.0f).withCentre ({ a.getX() + 22.0f, a.getCentreY() });
-            if (isTicked) drawCheck (g, ib.expanded (1.0f), kAccent, 2.0f);
-            else drawIco (g, shortcut == "ico:glow" ? (int) icoGlow : iconFor (text), ib, ! isActive ? kFaint : hi ? kAccent : kDim);
-            auto tr = a.withTrimmedLeft (38.0f).withTrimmedRight (hasSubMenu ? 30.0f : 14.0f);
+            const int ico = shortcut == "ico:glow" ? (int) icoGlow : iconFor (text);
+            const bool shape = isShapeIco (ico);
+            if (shape)
+            {
+                // forme de bande : la courbe reste dessinée, la coche passe à droite
+                drawIco (g, ico, ib.expanded (1.5f), ! isActive ? kFaint : (isTicked || hi) ? kAccent : kDim);
+                if (isTicked) drawCheck (g, Rectangle<float> (14.0f, 14.0f).withCentre ({ a.getRight() - 20.0f, a.getCentreY() }), kAccent, 2.0f);
+            }
+            else if (isTicked) drawCheck (g, ib.expanded (1.0f), kAccent, 2.0f);
+            else drawIco (g, ico, ib, ! isActive ? kFaint : hi ? kAccent : kDim);
+            auto tr = a.withTrimmedLeft (38.0f).withTrimmedRight (hasSubMenu ? 30.0f : (shape ? 34.0f : 14.0f));
             g.setFont (getPopupMenuFont());
             g.setColour (textColour != nullptr ? *textColour : ! isActive ? kDim.withAlpha (0.55f) : hi ? Colours::white : kText);
             g.drawFittedText (text, tr.toNearestInt(), Justification::centredLeft, 1, 0.9f);

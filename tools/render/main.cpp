@@ -312,6 +312,20 @@ int main()
         if (auto* cp = p.apvts.getParameter ("color")) cp->setValueNotifyingHost (0.5f);
     }
 
+    // 4 quater. menu des formes (icônes de courbe), dessiné hors fenêtre pour contrôle
+    {
+        std::unique_ptr<QmixEditor> ed (dynamic_cast<QmixEditor*> (p.createEditor()));
+        const int W = 240, H = 8 * 32 + 14;
+        Image im (Image::ARGB, W * 2, H * 2, true);
+        Graphics g (im); g.addTransform (AffineTransform::scale (2.0f));
+        ed->menuLnf.drawPopupMenuBackground (g, W, H);
+        for (int t = 0; t < qmix::numTypes; ++t)
+            ed->menuLnf.drawPopupMenuItem (g, Rectangle<int> (0, 7 + t * 32, W, 32), false, true, t == qmix::lowCut, t == qmix::lowShelf, false,
+                                           qmix::typeName (t), {}, nullptr, nullptr);
+        File out = File::getCurrentWorkingDirectory().getChildFile ("qmix_shape_menu.png"); out.deleteFile();
+        FileOutputStream os (out); PNGImageFormat png; png.writeImageToStream (im, os);
+    }
+
     // 5. captures (notice, README de contrôle)
     p.phaseMode = qmix::analog; p.prepareToPlay (48000.0, 512);
     p.loadFactoryPreset (1);

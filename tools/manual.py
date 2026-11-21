@@ -176,7 +176,7 @@ f.append(P("<b>Stereo</b> : les deux canaux. <b>Left</b> / <b>Right</b> : un seu
 
 # ---------- 5. Panneau ----------
 f.append(P("5. Panneau de la bande", "h1"))
-f.append(P("Le panneau apparaît en bas de l'écran pour la bande sélectionnée. À gauche : numéro et couleur de la bande, puis les puces <b>forme</b> (clic : liste des formes), <b>pente</b> (coupe-bas et coupe-haut seulement), <b>placement stéréo</b> et <b>DYN</b> (rend la bande dynamique ; cloche, plateaux et tilt seulement). À droite : marche / arrêt de la bande et la croix pour la supprimer."))
+f.append(P("Le panneau apparaît en bas de l'écran pour la bande sélectionnée. À gauche : numéro et couleur de la bande, puis les puces <b>forme</b> (petite courbe de la forme + son nom ; clic : liste des formes, chacune avec l'icône de sa courbe), <b>pente</b> (coupe-bas et coupe-haut seulement), <b>placement stéréo</b> et <b>DYN</b> (rend la bande dynamique ; cloche, plateaux et tilt seulement). À droite : marche / arrêt de la bande et la croix pour la supprimer."))
 f += bullets(["<b>FREQ</b> : 10 Hz à 30 kHz. <b>GAIN</b> : −30 à +30 dB. <b>Q</b> : 0,025 à 40.",
               "Potards : glisser verticalement (Maj : réglage fin), molette, <b>double-clic</b> : valeur par défaut, <b>clic droit</b> : MIDI Learn (section 9). L'anneau coloré montre la valeur ; celui du gain part du centre."])
 f.append(KeepTogether([Spacer(1, 2 * mm), img(panel_dyn, W * 0.82), P("Panneau d'une bande dynamique : FREQ, GAIN, Q, puis THRESHOLD et RANGE.", "small")]))

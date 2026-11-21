@@ -336,7 +336,16 @@ void BandPanel::paint (Graphics& g)
     rSlope = { x0, r.getY() + 56.0f * s, 40.0f * s, 20.0f * s };
     rPlace = { x0 + 43.0f * s, r.getY() + 56.0f * s, 42.0f * s, 20.0f * s };
     rDyn   = { x0 + 88.0f * s, r.getY() + 56.0f * s, 40.0f * s, 20.0f * s };
-    chip (rType, String (qmix::typeShort (v.type)) + "  " + String::charToString (0x25BE), true, true);
+    chip (rType, String(), true, true);
+    {
+        // forme de la bande : petite courbe + nom
+        const auto ir = Rectangle<float> (16.0f * s, 16.0f * s).withCentre ({ rType.getX() + 13.0f * s, rType.getCentreY() });
+        QmixMenu::drawIco (g, QmixMenu::shapeIco (v.type), ir, c);
+        g.setColour (cText);
+        g.setFont (ed.font (1, 10.5f * s));
+        g.drawFittedText (String (qmix::typeShort (v.type)) + "  " + String::charToString (0x25BE),
+                          rType.withTrimmedLeft (24.0f * s).toNearestInt(), Justification::centred, 1, 0.8f);
+    }
     chip (rSlope, qmix::hasSlope (v.type) ? String (qmix::slopeDb (v.slope)) + " dB" : String ("--"), qmix::hasSlope (v.type), false);
     chip (rPlace, qmix::placementName (v.place), true, v.place != 0);
     chip (rDyn, "DYN", qmix::canBeDynamic (v.type), v.dyn && qmix::canBeDynamic (v.type));

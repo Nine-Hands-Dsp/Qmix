@@ -49,6 +49,7 @@ cmake --build build --config Release
 
 | Version | Changements |
 |---|---|
+| 1.2.6 | Icônes de courbe pour chaque forme de filtre (Bell, Low Shelf, High Shelf, Low Cut, High Cut, Notch, Band Pass, Tilt Shelf) dans le menu Shape et dans le bouton de forme du panneau de bande ; la coche de la forme active passe à droite. |
 | 1.2.5 | Menu Plugin size : sous-menu « Default size » pour choisir la taille d'ouverture des nouvelles fenêtres (60 / 75 / 100 %, commune à toutes les instances) ; ligne d'état sans scintillement (son opacité oscillait entre 100 et 89 % à chaque image) ; chiffres à chasse fixe, le texte ne bouge plus quand une valeur change. |
 | 1.2.2 | Moteur revu : trajet en double précision, coefficients interpolés à chaque échantillon (aucun zipper), section par section ; jusqu'à 4 fois moins de CPU en Analog (bandes dynamiques, coupes raides) ; couleur COLOR sans perte d'aigu (l'anti-repliement retirait jusqu'à 11 dB à 20 kHz) ; contournement par le DAW compensé en latence ; phase linéaire : plus de passage non retardé au changement de mode, rendu hors temps réel sans blanc. |
 | 1.2.1 | Nouveau nom : QMix (fichiers QMix.vst3 et QMix-VST3-…zip ; les projets existants retrouvent le plugin). |
